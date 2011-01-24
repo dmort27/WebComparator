@@ -1,0 +1,75 @@
+#reflexes-box, #cogsets-box, #cogset-box { 
+    float: left; 
+    margin: 5px 5px 5px 5px;\
+    height: 100%;
+}
+
+.tagged { 
+    font-weight: bold 
+}
+
+.ui-widget { 
+    font-family: Charis SIL Compact, Charis SIL, Doulos SIL, DejaVu Serif, Lucida Grande, DejaVu Sans, Times New Roman, serif; 
+    font-size: 0.7em;
+}
+
+.ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button { 
+    font-family: Charis SIL Compact, Charis SIL, Doulos SIL, DejaVu Serif, Lucida Grande, DejaVu Sans, Times New Roman, serif;
+    font-size: 0.7em;
+}
+
+#cogset-box, #cogsets-box, #reflexes-box, #morph-picker {
+    -moz-user-select: none;
+    -khtml-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#cogset-box { 
+    height: 100%; 
+}
+
+#cogset-table { 
+    width: 300px;
+    height: auto; 
+    table-layout: fixed;
+    white-space: normal;
+    border-collapse: collapse;
+    border-style: solid;
+    border-width: 0px;
+}
+
+#cogset-table td.langname {
+    font-weight: bold;
+    width: 100px;
+    overflow: visible;
+}
+
+#cogset-table td.reflex {
+    width: 200px;
+    overflow: visible;
+    whitespace: normal;
+}
+
+#cogset-table th {
+    height: 20px;
+}
+
+#morph-picker {
+    font-size: 2em;
+    color: gray;
+    width: 100%;
+    text-align: center;
+}
+
+.morph {
+    color: gray;
+}
+
+.indexed {
+    color: black;
+}
+
+#cogset-tbody .indexed {
+    font-weight: bold;
+}

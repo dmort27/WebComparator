@@ -1,0 +1,29 @@
+Name:                WebComparator
+Version:             0.1
+Synopsis:            Software for linguistic comparison
+Description:         Software for linguistic comparison.
+License:             BSD3
+License-file:        LICENSE
+Author:              David Mortensen
+Maintainer:          David Mortensen <davidmortensen@gmail.com>
+Cabal-Version:       >= 1.2
+Build-type:	     Simple
+
+Library
+  Exposed-Modules:     Network.JQGrid, Site
+  Build-Depends:       base >= 4.0, old-time, old-locale, HDBC, HDBC-sqlite3, json
+
+Executable query.cgi
+  Main-is:             Query.hs
+  Other-Modules:       Network.JQGrid, Site
+  Build-Depends:       base, HDBC, utf8-string, cgi, split
+
+Executable edit.cgi
+  Main-is:             Edit.hs
+  Other-Modules:       Network.JQGrid, Site
+  Build-Depends:       base, HDBC, utf8-string, cgi, split
+
+Executable auth.cgi
+  Main-is:             Edit.hs
+  Other-Modules:       Network.JQGrid, Site
+  Build-Depends:       base, HDBC, utf8-string, cgi, split

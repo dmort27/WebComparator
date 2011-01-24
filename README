@@ -1,0 +1,5 @@
+WebComparator is a browser-based database front-end for managing
+comparative linguistic data. Right now, it uses SQLite, though it will
+eventually be usable with other database engines as well. The database
+interface and business logic are written in Haskell. The interface is
+written in JavaScript/HTML/CSS (with JQuery, JQuery UI, and JQGrid).
