@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-CGIBIN = /Library/WebServer/CGI-Executables
-CGI = /Library/WebServer/Documents
-DB = /var/webcomparator
+export CGIBIN="/Library/WebServer/CGI-Executables"
+export CGI="/Library/WebServer/Documents"
+export DB="/var/webcomparator"
 
 mkdir -p $CGI/webcomparator
 mkdir -p $CGI/webcomparator/js

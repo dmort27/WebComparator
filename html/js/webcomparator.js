@@ -30,8 +30,7 @@ $(document).ready(
         
         // Instantiate the morph-picker dialog
 	var morphDialog =
-            $("#morph-picker-dialog")
-	    .dialog({
+            $("#morph-picker-dialog").dialog({
 		autoOpen: false,
 		closeOnEscape: true,
                 modal: true,
@@ -337,7 +336,7 @@ $(document).ready(
         var winWidth = $(window).width();
 
         var authDialog = $("#auth-dialog").dialog({
-            autoOpen: true,
+            autoOpen: false,
             closeOnEscape: false,
             modal: true,
             overlay: {background: "black", opacity: 1},
