@@ -1,11 +1,11 @@
-/* GLOBAL SITE SETTINGS */
-
-var cgiRoot = '/cgi-bin/';
-
 /* WHEN DOCUMENT IS READY, EXECUTE */
 
 $(document).ready(
     function () {
+
+        /* GLOBAL SITE SETTINGS */
+
+        var cgiRoot = '/cgi-bin/';
         
         // Formatters and unformatters
 	var protoformFormat = function(s) { return ('*' + s); };
@@ -373,8 +373,8 @@ $(document).ready(
 		   function (langnames) {
                        var reflexes = initReflexes(langnames);
                        reflexes.setGridHeight(winHeight * 0.80);
-                       authDialog.show();
-                       authDialog.dialog("open");
+                       // authDialog.show();
+                       // authDialog.dialog("open");
                    } );
 
     });
