@@ -69,6 +69,7 @@ reflexRowToRecord langIds (id:gloss:protoform:reflexes) =
                 where [form, ind] = Split.splitOn ";;;" refl'
             Nothing -> Nothing
 
+-- Deprecated: cogsets table phased out. Fix.
 createReflexTable :: (IConnection conn) => conn -> [Integer] -> IO Integer
 createReflexTable conn langs = run conn sql []
     where
@@ -79,6 +80,7 @@ createReflexTable conn langs = run conn sql []
                                                  "FROM reflex_of NATURAL JOIN reflexes WHERE langid=%d) AS lang%d")
                                     l l l) langs)
 
+-- Deprecated: cogsets table phrase out. Fix.
 reflexRecords :: [Integer] -> IO RTRs
 reflexRecords langs = do
   conn <- connectDB
@@ -91,6 +93,7 @@ convertDelimList :: SqlValue -> JSValue
 convertDelimList SqlNull = JSArray []
 convertDelimList x = showJSON $ map showJSON $ Split.splitOn ";;;" (fromSql x :: String)
 
+-- Deprecated: cogsets table phrase out. Fix.
 cogSetSQL = "SELECT langid, name, GROUP_CONCAT(form, ';;;') AS forms, " ++ 
             "GROUP_CONCAT(gloss, ';;;') AS glosses, " ++
             "GROUP_CONCAT(refid, ';;;') AS refids, " ++ 
