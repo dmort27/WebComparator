@@ -12,9 +12,9 @@ import Data.Maybe (fromMaybe)
 import qualified Data.List.Split as Split
 
 import Database.HDBC
---import Database.HDBC.Sqlite3
+import Database.HDBC.Sqlite3
 
-import Codec.Binary.UTF8.String (encodeString)
+import Codec.Binary.UTF8.String (encodeString, decodeString)
 import qualified Data.ByteString.UTF8
 
 import Site
@@ -114,17 +114,19 @@ cogSetRespToJSON  =
                      , csMorphInds = morphInds
                      })
                                                       
-getCogSetJSON :: [(String, String)] -> IO String
+getCogSetJSON :: [(String, String)] -> IO JSValue
 getCogSetJSON inputs = do
   case lookup "cogsetid" inputs of
     Just cogsetid -> 
         handleSqlError $ do
                          conn <- connectDB
-                         json <- quickQuery' conn cogSetSQL [toSql (read cogsetid :: Integer)] >>= return . encode . cogSetRespToJSON
+                         json <- quickQuery' conn cogSetSQL [toSql (read cogsetid :: Integer)] >>= return . cogSetRespToJSON
                          disconnect conn
                          return json
                          
-    Nothing -> return $ encode $ showJSON "Error! No cogsetid given."
+    Nothing -> return $ showJSON "Error! No cogsetid given."
+
+{- DEPRECATED -}
 
 reflexesSQL = "SELECT %s, GROUP_CONCAT(morph_index || \":\" || cogsetid) AS cogmorph " ++ -- %s for fields
               "FROM %s LEFT NATURAL JOIN reflex_of %s " ++ -- %s for table, %s for where clause
@@ -142,37 +144,60 @@ protoFormDefaults = [("sidx","gloss")]
 protoFormQuery :: [(String, String)] -> JQGridQuery
 protoFormQuery inputs = jqGridQuery "cogsets" protoFormFields [] protoFormSQL (inputs ++ protoFormDefaults)
 
-getJSONGrid :: JQGridQuery -> IO String
-getJSONGrid query = 
-    handleSqlError $ do
-      conn <- connectDB
-      json <- jqGridResponse conn query
-      disconnect conn
-      return json
+{- END DEPRECATED -}
 
-getJSONMap :: String -> String -> String -> IO String
-getJSONMap table key value =
-    handleSqlError $ do
-      conn <- connectDB
-      json <- quickQuery' conn sql [] >>= return . encode . makeObj . map (\[k,v] -> (fromSql k, showJSON v))
-      disconnect conn
-      return json
-          where
-            sql = printf "SELECT %s, %s FROM %s" key value table
+reflexesSelect :: [(String, String)] -> JQSelect
+reflexesSelect = jqSelect "reflexes" 
+                 ["refid", "form", "gloss", "langid"] 
+                 [SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || cogsetid)" "cogmorph"] 
+                 [JnNatLeft "reflex_of"] 
+                 [WhTrue "langnames.include"]
+                 ["refid"] 
 
+-- Builds a hash-table (as a JSON object) from an SQL table given a
+-- table name, the field to use for the key, and the field to use as
+-- the value.
+getJSONMap :: String -> String -> String -> IO JSValue
+getJSONMap table key value = withDbConnection getJSONMap'
+    where
+      getJSONMap' conn = quickQuery' conn sql [] >>= return . makeObj . map (\[k,v] -> (fromSql k, showJSON v))
+      sql = printf "SELECT %s, %s FROM %s" key value table
+
+-- Returns data suitable for populating a JQGrid based on a JQGridQuery object.
+getJSONGrid :: JQGridQuery -> IO JSValue
+getJSONGrid query = withDbConnection (\conn -> jqGridResponse conn query)
+
+-- Perform the specified action with a DB connection. Queries must
+-- force strict evaluation; lazy queries will not return any values
+-- before the connection is closed. The function should be moved to
+-- another module so it is not duplicated.
+withDbConnection :: (Connection -> IO a) -> IO a
+withDbConnection action = handleSqlError $ do
+      conn <- connectDB
+      result <- action conn
+      disconnect conn
+      return result
+
+mapPair :: (a -> b) -> (a, a) -> (b, b)
+mapPair f (a, b) = (f a, f b)
+
+-- The main function running in the CGI monad. It passes the arguments
+-- to different functions generating JSON based on the value of qtype.
 cgiMain :: CGIT IO CGIResult
 cgiMain = do
   setHeader "Content-Type" "application/json; charset=utf-8"
   qType <- getInput "qtype"
+  conn <- liftIO connectDB
   json <- getInputs >>= liftIO .
-          case qType of
-            Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name")
-            Just "cogset" -> getCogSetJSON
-            Just "cogsets" -> getJSONGrid . protoFormQuery
-            Just "reflexes" -> getJSONGrid . reflexQuery
-            Just _ -> getJSONGrid . reflexQuery -- Should return an error message instead
-            Nothing -> getJSONGrid . reflexQuery -- Should return an error message instead
-  output $ encodeString $ json
+          (case qType of
+             Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name")
+             Just "cogset" -> getCogSetJSON
+             Just "cogsets" -> getJSONGrid . protoFormQuery
+             Just "reflexes" -> getJSONGrid . reflexQuery
+             Just _ -> jqSelectResp conn $ reflexesSelect
+             Nothing -> jqSelectResp conn $ reflexesSelect)
+  liftIO $ disconnect conn
+  output $ encodeString $ encode $ json
 
 main :: IO ()
 main = runCGI $ handleErrors $ cgiMain

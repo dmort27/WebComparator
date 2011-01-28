@@ -1,26 +1,138 @@
 -- Implements a Haskell interface to the JQGrid table widget using Database.HDBC and Data.JSON.
-module Network.JQGrid ( JQGridQuery
-              , JQGridTableRow
-              , JQGridResp
-              , recordCount
-              , pageCount
-              , startRecord
-              , toJQGridTableRow
-              , jqGridQuery
-              , jqGridResponse ) where
+module Network.JQGrid ( JQGridQuery (..)
+                      , SelectFields (..)
+                      , SelectField (..)
+                      , SelectSource (..)
+                      , JnTable (..)
+                      , SelectJoin (..)
+                      , SelectCond (..)
+                      , SelectWhere (..)
+                      , SelectOrder (..)
+                      , SelectGroup (..)
+                      , SelectLimit (..)
+                      , JQSelect (..)
+                      , jqSelect
+                      , jqSelectResp
+                      , JQGridTableRow (..)
+                      , JQGridResp (..)
+                      , recordCount
+                      , pageCount
+                      , startRecord
+                      , toJQGridTableRow
+                      , jqGridQuery
+                      , jqGridResponse ) where
 
 import System.Locale
 import System.Time
 
 import qualified Data.ByteString.UTF8
-import qualified Codec.Binary.UTF8.String
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import Text.JSON
 import Text.Printf (printf)
 import Data.List (intercalate)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust)
+
+makeSafe :: String -> String
+makeSafe = filter (`notElem` ";.,'\"")
+
+parenthesize :: String -> String
+parenthesize s = "(" ++ s ++ ")"
+
+data SelectFields = SelectFields [SelectField]
+instance Show SelectFields where
+    show (SelectFields xs) = "SELECT " ++ (intercalate ", " $ map show xs)
+
+data SelectField = SelectField String | SelectFieldAs String String
+instance Show SelectField where
+    show (SelectField f) = f
+    show (SelectFieldAs f f') = f ++ " AS " ++ f'
+
+data SelectSource = SelectSource String
+instance Show SelectSource where
+    show (SelectSource table) = "FROM " ++ table
+
+data JnTable = JnNat String
+             | JnNatLeft String
+             | JnNatLeftOuter String
+             | JnOn String String String
+instance Show JnTable where
+    show (JnNat t) = "NATURAL JOIN " ++ t
+    show (JnNatLeft t) = "NATURAL LEFT JOIN " ++ t
+    show (JnNatLeftOuter t) = "NATURAL LEFT OUTER JOIN " ++ t
+    show (JnOn t f f') = printf "JOIN %s ON %s=%s" t f f'
+
+data SelectJoin = SelectJoin [JnTable]
+instance Show SelectJoin where
+    show (SelectJoin joins) = intercalate ", " $ map show joins
+
+data SelectCond = WhEqNum String Int | WhEqStr String String | WhLike String String
+               | WhTrue String | WhFalse String
+               | WhAnd [SelectCond] | WhOr [SelectCond] | WhNone
+                 deriving (Eq)                 
+instance Show SelectCond where
+    show (WhEqNum field value) = printf "%s=%d" field value
+    show (WhEqStr field value) = printf "%s='%s'" field $ makeSafe value
+    show (WhLike field value) = printf "%s LIKE '%%%s%%'" field $ makeSafe value
+    show (WhTrue field) = printf "%s" field
+    show (WhFalse field) = printf "NOT %s" field
+    show (WhAnd conds) = parenthesize $ intercalate " AND " $ map show conds
+    show (WhOr conds) = parenthesize $ intercalate " OR " $ map show conds
+
+data SelectWhere = SelectWhere SelectCond deriving (Eq)
+instance Show SelectWhere where
+    show (SelectWhere WhNone) = ""
+    show (SelectWhere (WhAnd [])) = ""
+    show (SelectWhere (WhOr [])) = ""
+    show (SelectWhere xs) = "WHERE " ++ show xs
+
+data SelectOrder = SelectOrder [(String, String)]
+instance Show SelectOrder where
+    show (SelectOrder []) = ""
+    show (SelectOrder xs) = "ORDER BY " ++ (intercalate ", " $ map (\(f,o) -> f ++ " " ++ o) xs)
+
+data SelectGroup = SelectGroup [String]
+instance Show SelectGroup where
+    show (SelectGroup []) = ""
+    show (SelectGroup xs) = "GROUP BY " ++ (intercalate ", " xs)
+
+data SelectLimit = SelectLimit Int Int | SelectLimitNone
+instance Show SelectLimit where
+    show SelectLimitNone = ""
+    show (SelectLimit offset limit) = printf "LIMIT %d, %d" offset limit
+
+data JQSelect = JQSelect
+    { selectFields :: SelectFields
+    , selectSource :: SelectSource
+    , selectJoins :: SelectJoin
+    , selectWhere :: SelectWhere
+    , selectOrder :: SelectOrder
+    , selectGroup :: SelectGroup
+    , selectLimit :: SelectLimit
+    }
+instance Show JQSelect where
+    show select = intercalate " " $
+                  filter (/="")
+                  [ (show $ selectFields select)
+                  , (show $ selectSource select)
+                  , (show $ selectJoins select)
+                  , (show $ selectWhere select)
+                  , (show $ selectOrder select)
+                  , (show $ selectGroup select)
+                  , (show $ selectLimit select)
+                  ]
+
+defaultJQSelect = 
+    JQSelect
+    { selectFields = SelectFields []
+    , selectSource = SelectSource ""
+    , selectJoins = SelectJoin []
+    , selectWhere = SelectWhere WhNone
+    , selectOrder = SelectOrder []
+    , selectGroup = SelectGroup []
+    , selectLimit = SelectLimitNone
+    }
 
 -- Instances allowing the serialization of items of type SqlValue
 -- (from Database.HDBC) as JSON values.
@@ -52,6 +164,8 @@ readMay s = case [x | (x,t) <- reads s, ("","") <- lex t] of
                 [x] -> Just x
                 _ -> Nothing
 
+-- Tries to convert Strings to JSON numerical values; if this is not
+-- possible, returns a JSON string value.
 fromAmbiguous :: String -> JSValue
 fromAmbiguous x = 
     case (readMay x) :: (Maybe Double) of
@@ -90,7 +204,6 @@ data JQGridResp = JQGridResp
     , respRows :: [JQGridTableRow]
     } deriving (Show, Eq)
 
-
 instance JSON JQGridResp where
     showJSON resp 
         = makeObj 
@@ -125,9 +238,9 @@ startRecord limit page = limit * (page - 1)
 toJQGridTableRow :: [String] -> [SqlValue] -> JQGridTableRow
 toJQGridTableRow fields row = JQGridTableRow $ zip fields row
 
--- Given the name of the table, the name of the table's fields, a skeleton SQL
--- string for building a query, and a list of HTTP property-value
--- pairs, returns a JQGridQuery.
+-- Deprecated. Given the name of the table, the name of the table's
+-- fields, a skeleton SQL string for building a query, and a list of
+-- HTTP property-value pairs, returns a JQGridQuery.
 jqGridQuery :: String  -> [String] -> [String] -> String -> [(String,String)] -> JQGridQuery
 jqGridQuery table fields specFields sql inputs = JQGridQuery
     { queryTable = table
@@ -145,13 +258,52 @@ jqGridQuery table fields specFields sql inputs = JQGridQuery
       rows = read $ fromMaybe "100" $ lookup "rows" inputs 
       sidx = fromMaybe "id" $ lookup "sidx" inputs 
       sord = fromMaybe "ASC" $ lookup "sord" inputs 
-      wheres = [(k, Codec.Binary.UTF8.String.decodeString v) | (k,v) <- inputs, k `elem` fields]
+      wheres = [(k, v) | (k,v) <- inputs, k `elem` fields]
 
+-- Given the name of the source table, a list of searchable fields (as
+-- strings), a list of other fields (as SelectField), a list of joins
+-- (as JnTable), and an association list of parameters from the HTTP
+-- request, returns a JQSelect.
+jqSelect :: String  -> [String]  -> [SelectField] -> [JnTable] -> [SelectCond] -> [String] -> [(String,String)] -> JQSelect
+jqSelect source fields specFields joins wheres groupBys inputs = JQSelect
+    { selectFields = SelectFields $ (map SelectField fields) ++ specFields
+    , selectSource = SelectSource source
+    , selectJoins = SelectJoin joins
+    , selectWhere = SelectWhere $ WhAnd wheres'
+    , selectOrder = SelectOrder [(sidx, sord)]
+    , selectGroup = SelectGroup groupBys
+    , selectLimit = SelectLimit (startRecord rows page) rows
+    }
+    where
+      page = read $ fromMaybe "1" $ lookup "page" inputs
+      rows = read $ fromMaybe "100" $ lookup "rows" inputs
+      sidx = fromMaybe "id" $ lookup "sidx" inputs 
+      sord = fromMaybe "ASC" $ lookup "sord" inputs 
+      wheres' = wheres ++ [WhLike f v | (f, v) <- inputs, f `elem` fields]
+
+jqSelectResp :: Connection -> ([(String,String)] -> JQSelect) -> [(String,String)] -> IO JSValue
+jqSelectResp conn select params = do
+  records <- recordCount conn source
+  let totalPages = pageCount records rows
+  let page' = if (page <= totalPages) then page else totalPages
+  rows <- quickQuery' conn (show jqSelect) []
+  return $ showJSON $ JQGridResp totalPages page' records $ map (toJQGridTableRow fieldNames) rows
+      where
+        jqSelect = select params
+        SelectSource source = selectSource jqSelect
+        SelectFields fields = selectFields jqSelect
+        page = read $ fromJust $ lookup "page" params
+        rows = read $ fromJust $ lookup "rows" params
+        fieldNames = 
+            map (\x -> case x of
+                         SelectField f -> f
+                         SelectFieldAs _ f -> f) fields
+        
 -- Implements basic communication between a JQGrid widget and an HDBC
 -- database backend. Takes an HDBC database connection and a
 -- JQGridQuery object and returns a response serialized as JSON
 -- interpretable by the JQGrid widget.
-jqGridResponse :: (IConnection conn) => conn -> JQGridQuery -> IO String
+jqGridResponse :: (IConnection conn) => conn -> JQGridQuery -> IO JSValue
 jqGridResponse conn query = do
   records <- recordCount conn (queryTable query)
   let totalPages = pageCount records (queryLimit query)
@@ -159,10 +311,9 @@ jqGridResponse conn query = do
               then (queryPage query) 
               else totalPages
   rows <- quickQuery' conn sql []
-  return $ encode $ showJSON $ 
+  return $ showJSON $ 
          JQGridResp totalPages page' records 
                         (map (toJQGridTableRow ((queryFields query) ++ querySpecFields query)) rows)
-
       where
         start = startRecord (queryLimit query) (queryPage query)
         wheres' = map (\(k,v) -> printf "%s LIKE '%%%s%%'" k v) (queryWheres query)
@@ -179,8 +330,5 @@ jqGridResponse conn query = do
               (queryLimit query) -- rows per page
 
 -- Samples for testing:
-
-sqlSample1 = "SELECT %s, GROUP_CONCAT(morph_index || \":\" || cogsetid) " ++
-             "FROM %s LEFT NATURAL JOIN reflex_of %s GROUP BY refid ORDER BY %s %s LIMIT %d, %d"
 
 fieldsSample1 = ["refid", "form", "gloss", "langid"] 
