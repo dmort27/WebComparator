@@ -3,8 +3,9 @@ module Network.JQGrid ( JQGridQuery (..)
                       , SelectFields (..)
                       , SelectField (..)
                       , SelectSource (..)
-                      , JnTable (..)
                       , SelectJoin (..)
+                      , JnType (..)
+                      , SelectJoins (..)
                       , SelectCond (..)
                       , SelectWhere (..)
                       , SelectOrder (..)
@@ -53,19 +54,27 @@ data SelectSource = SelectSource String
 instance Show SelectSource where
     show (SelectSource table) = "FROM " ++ table
 
-data JnTable = JnNat String
-             | JnNatLeft String
-             | JnNatLeftOuter String
-             | JnOn String String String
-instance Show JnTable where
-    show (JnNat t) = "NATURAL JOIN " ++ t
-    show (JnNatLeft t) = "NATURAL LEFT JOIN " ++ t
-    show (JnNatLeftOuter t) = "NATURAL LEFT OUTER JOIN " ++ t
-    show (JnOn t f f') = printf "JOIN %s ON %s=%s" t f f'
+data JnType = JnPlain | JnLeft | JnLeftOuter | JnInner | JnCross
+instance Show JnType where
+    show JnPlain = ""
+    show JnLeft = "LEFT"
+    show JnLeftOuter = "LEFT OUTER"
+    show JnInner = "LEFT INNER"
+    show JnCross = "CROSS"
 
-data SelectJoin = SelectJoin [JnTable]
+data SelectJoin = JnNat JnType String
+                | JnOn JnType String String String
+                | JnSelNat JnType JQSelect
+                | JnSelOn JnType JQSelect String String
 instance Show SelectJoin where
-    show (SelectJoin joins) = intercalate ", " $ map show joins
+    show (JnNat jnType table)                 = printf "NATURAL %s JOIN %s" (show jnType) table
+    show (JnOn jnType table field field')     = printf "%s JOIN %s ON %s=%s" (show jnType) table field field'
+    show (JnSelNat jnType select)             = printf "NATURAL %s JOIN (%s)" (show jnType) (show select)
+    show (JnSelOn jnType select field field') = printf "%s JOIN (%s) ON %s=%s" (show jnType) (show select) field field'
+
+data SelectJoins = SelectJoins [SelectJoin]
+instance Show SelectJoins where
+    show (SelectJoins joins) = intercalate " " $ map show joins
 
 data SelectCond = WhEqNum String Int | WhEqStr String String | WhLike String String
                | WhTrue String | WhFalse String
@@ -87,8 +96,9 @@ instance Show SelectWhere where
     show (SelectWhere (WhOr [])) = ""
     show (SelectWhere xs) = "WHERE " ++ show xs
 
-data SelectOrder = SelectOrder [(String, String)]
+data SelectOrder = SelectOrder [(String, String)] | SelectOrderNone
 instance Show SelectOrder where
+    show SelectOrderNone = ""
     show (SelectOrder []) = ""
     show (SelectOrder xs) = "ORDER BY " ++ (intercalate ", " $ map (\(f,o) -> f ++ " " ++ o) xs)
 
@@ -105,7 +115,7 @@ instance Show SelectLimit where
 data JQSelect = JQSelect
     { selectFields :: SelectFields
     , selectSource :: SelectSource
-    , selectJoins :: SelectJoin
+    , selectJoins :: SelectJoins
     , selectWhere :: SelectWhere
     , selectOrder :: SelectOrder
     , selectGroup :: SelectGroup
@@ -127,7 +137,7 @@ defaultJQSelect =
     JQSelect
     { selectFields = SelectFields []
     , selectSource = SelectSource ""
-    , selectJoins = SelectJoin []
+    , selectJoins = SelectJoins []
     , selectWhere = SelectWhere WhNone
     , selectOrder = SelectOrder []
     , selectGroup = SelectGroup []
@@ -202,6 +212,7 @@ data JQGridResp = JQGridResp
     , respPage :: Int
     , respRecords :: Int
     , respRows :: [JQGridTableRow]
+    , respSql :: String
     } deriving (Show, Eq)
 
 instance JSON JQGridResp where
@@ -211,8 +222,9 @@ instance JSON JQGridResp where
           , ( "page", showJSON $ respPage resp )
           , ( "records", showJSON $ respRecords resp )
           , ( "rows", showJSON $ respRows resp )
+          , ( "sql", showJSON $ respSql resp )
           ]
-    readJSON x = return $ JQGridResp 0 0 0 [] -- Not implemented
+    readJSON x = return $ JQGridResp 0 0 0 [] "" -- Not implemented
 
 -- Given a connection to an HDBC database and the name of a table,
 -- returns the number of records in the table.
@@ -264,21 +276,28 @@ jqGridQuery table fields specFields sql inputs = JQGridQuery
 -- strings), a list of other fields (as SelectField), a list of joins
 -- (as JnTable), and an association list of parameters from the HTTP
 -- request, returns a JQSelect.
-jqSelect :: String  -> [String]  -> [SelectField] -> [JnTable] -> [SelectCond] -> [String] -> [(String,String)] -> JQSelect
+jqSelect :: String  -> [String]  -> [SelectField] -> [SelectJoin] -> [SelectCond] -> [String] -> [(String,String)] -> JQSelect
 jqSelect source fields specFields joins wheres groupBys inputs = JQSelect
     { selectFields = SelectFields $ (map SelectField fields) ++ specFields
     , selectSource = SelectSource source
-    , selectJoins = SelectJoin joins
+    , selectJoins = SelectJoins joins
     , selectWhere = SelectWhere $ WhAnd wheres'
-    , selectOrder = SelectOrder [(sidx, sord)]
+    , selectOrder = case (maybeSidx, maybeSord) of
+                      (Just sidx, Just sord) -> 
+                          case (readMay sidx :: Maybe Int, readMay sord :: Maybe Int) of
+                            (Just i, Just o) -> SelectOrder [(sidx, sord)]
+                            _ -> SelectOrderNone
+                      _ -> SelectOrderNone
     , selectGroup = SelectGroup groupBys
-    , selectLimit = SelectLimit (startRecord rows page) rows
+    , selectLimit = case (maybePage, maybeRows) of
+                      (Just page, Just rows) -> SelectLimit (startRecord (read rows) (read page)) (read rows)
+                      _ -> SelectLimitNone
     }
     where
-      page = read $ fromMaybe "1" $ lookup "page" inputs
-      rows = read $ fromMaybe "100" $ lookup "rows" inputs
-      sidx = fromMaybe "id" $ lookup "sidx" inputs 
-      sord = fromMaybe "ASC" $ lookup "sord" inputs 
+      maybePage = lookup "page" inputs
+      maybeRows = lookup "rows" inputs
+      maybeSidx = lookup "sidx" inputs 
+      maybeSord = lookup "sord" inputs 
       wheres' = wheres ++ [WhLike f v | (f, v) <- inputs, f `elem` fields]
 
 jqSelectResp :: Connection -> ([(String,String)] -> JQSelect) -> [(String,String)] -> IO JSValue
@@ -287,7 +306,7 @@ jqSelectResp conn select params = do
   let totalPages = pageCount records rows
   let page' = if (page <= totalPages) then page else totalPages
   rows <- quickQuery' conn (show jqSelect) []
-  return $ showJSON $ JQGridResp totalPages page' records $ map (toJQGridTableRow fieldNames) rows
+  return $ showJSON $ JQGridResp totalPages page' records (map (toJQGridTableRow fieldNames) rows) (show jqSelect)
       where
         jqSelect = select params
         SelectSource source = selectSource jqSelect
@@ -313,7 +332,7 @@ jqGridResponse conn query = do
   rows <- quickQuery' conn sql []
   return $ showJSON $ 
          JQGridResp totalPages page' records 
-                        (map (toJQGridTableRow ((queryFields query) ++ querySpecFields query)) rows)
+                        (map (toJQGridTableRow ((queryFields query) ++ querySpecFields query)) rows) ""
       where
         start = startRecord (queryLimit query) (queryPage query)
         wheres' = map (\(k,v) -> printf "%s LIKE '%%%s%%'" k v) (queryWheres query)

@@ -7,7 +7,7 @@ import Text.JSON
 import Text.Printf
 
 import Data.List (intercalate)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust)
 
 import qualified Data.List.Split as Split
 
@@ -116,43 +116,55 @@ cogSetRespToJSON  =
                                                       
 getCogSetJSON :: [(String, String)] -> IO JSValue
 getCogSetJSON inputs = do
-  case lookup "cogsetid" inputs of
-    Just cogsetid -> 
+  case lookup "prefid" inputs of
+    Just prefid -> 
         handleSqlError $ do
                          conn <- connectDB
-                         json <- quickQuery' conn cogSetSQL [toSql (read cogsetid :: Integer)] >>= return . cogSetRespToJSON
+                         json <- quickQuery' conn (show $ cogsetSelect inputs) [] >>= return . cogSetRespToJSON
+                         --json <- return $ showJSON $ show $ cogsetSelect inputs
                          disconnect conn
                          return json
                          
     Nothing -> return $ showJSON "Error! No cogsetid given."
 
-{- DEPRECATED -}
-
-reflexesSQL = "SELECT %s, GROUP_CONCAT(morph_index || \":\" || cogsetid) AS cogmorph " ++ -- %s for fields
-              "FROM %s LEFT NATURAL JOIN reflex_of %s " ++ -- %s for table, %s for where clause
-              "GROUP BY refid ORDER BY %s %s LIMIT %d, %d" -- %s for sidx, %s for sord, %d for offset, %d for row limit
-reflexesFields = ["refid", "form", "gloss", "langid"]
-reflexesDefaults = [("sidx","gloss")]
-
-reflexQuery :: [(String, String)] -> JQGridQuery
-reflexQuery inputs = jqGridQuery "reflexes" reflexesFields ["cogmorph"] reflexesSQL (inputs ++ reflexesDefaults)
-
-protoFormSQL = "SELECT %s FROM %s %s ORDER BY %s %s LIMIT %d, %d"
-protoFormFields = ["cogsetid", "form", "gloss"]
-protoFormDefaults = [("sidx","gloss")]
-
-protoFormQuery :: [(String, String)] -> JQGridQuery
-protoFormQuery inputs = jqGridQuery "cogsets" protoFormFields [] protoFormSQL (inputs ++ protoFormDefaults)
-
-{- END DEPRECATED -}
+cogsetSelect :: [(String, String)] -> JQSelect
+cogsetSelect params = jqSelect "langnames"
+                      [ "langid", "name" ]
+                      [ SelectFieldAs "GROUP_CONCAT(form, ';;;')" "forms"
+                      , SelectFieldAs "GROUP_CONCAT(gloss, ';;;')" "glosses"
+                      , SelectFieldAs "GROUP_CONCAT(refid, ';;;')" "refids"
+                      , SelectFieldAs "GROUP_CONCAT(morph_index, ';;;')" "morphinds" ]
+                      [ JnSelNat JnLeft reflexes]
+                      [ WhTrue "display" ]
+                      [ "langid" ]
+                      params
+                          where
+                            reflexes = jqSelect "reflexes"
+                                       ["langid", "prefid", "form", "gloss", "refid", "morph_index" ]
+                                       []
+                                       [JnNat JnPlain "reflex_of"]
+                                       [WhEqNum "prefid" $ read $ fromJust $ lookup "prefid" params]
+                                       []
+                                       []
 
 reflexesSelect :: [(String, String)] -> JQSelect
 reflexesSelect = jqSelect "reflexes" 
-                 ["refid", "form", "gloss", "langid"] 
-                 [SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || cogsetid)" "cogmorph"] 
-                 [JnNatLeft "reflex_of"] 
-                 [WhTrue "langnames.include"]
+                 ["refid", "form", "gloss", "reflexes.langid"] 
+                 [SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph"] 
+                 [JnNat JnLeft "reflex_of", JnOn JnPlain "langnames" "reflexes.langid" "langnames.langid"] 
+                 [WhTrue "display"]
                  ["refid"] 
+
+protoSelect :: [(String, String)] -> JQSelect
+protoSelect params = jqSelect "reflexes"
+              ["refid", "form", "gloss"]
+              []
+              []
+              [WhEqNum "langid" langid]
+              []
+              params
+    where
+      langid = read $ fromMaybe "0" $ lookup "plangid" params
 
 -- Builds a hash-table (as a JSON object) from an SQL table given a
 -- table name, the field to use for the key, and the field to use as
@@ -188,14 +200,15 @@ cgiMain = do
   setHeader "Content-Type" "application/json; charset=utf-8"
   qType <- getInput "qtype"
   conn <- liftIO connectDB
-  json <- getInputs >>= liftIO .
+  json <- getInputs >>= liftIO . handleSqlError .
           (case qType of
              Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name")
              Just "cogset" -> getCogSetJSON
-             Just "cogsets" -> getJSONGrid . protoFormQuery
-             Just "reflexes" -> getJSONGrid . reflexQuery
+             Just "cogsets" -> jqSelectResp conn $ protoSelect
+             Just "reflexes" -> jqSelectResp conn $ reflexesSelect
              Just _ -> jqSelectResp conn $ reflexesSelect
-             Nothing -> jqSelectResp conn $ reflexesSelect)
+             Nothing -> jqSelectResp conn $ reflexesSelect
+          )
   liftIO $ disconnect conn
   output $ encodeString $ encode $ json
 
