@@ -43,10 +43,10 @@ $(document).ready(
 			$.ajax({ url: cgiRoot + "edit.cgi", 
 				 data: {oper: "setmorphind", 
 					refid: data.refid, 
-					cogsetid: data.cogsetid, 
+					prefid: data.prefid, 
 					morphind: data.morphind}, 
 				 type: "POST",
-				 success: function() { updateCogSet(data.cogsetid); }
+				 success: function() { updateCogSet(data.prefid); }
 			       });
                         $(this).dialog("close");
 		    },
@@ -60,12 +60,12 @@ $(document).ready(
                         $.ajax({
                             url: cgiRoot + "edit.cgi",
                             data: {oper: "removefromset",
-                                   cogsetid: data.cogsetid,
+                                   prefid: data.prefid,
                                    refid: data.refid
                                   },
                             type: "POST",
                             success: function () {
-                                updateCogSet( data.cogsetid );
+                                updateCogSet( data.prefid );
                             }
                             
                         });
@@ -132,14 +132,14 @@ $(document).ready(
 	};
         
 	// Refreshes the display of the current cognate set.
-	var updateCogSet = function(cogsetid) {
+	var updateCogSet = function(prefid) {
 
-            // Set the value of cogsetid in two useful locations.
-	    $("body").data("cogsetid", cogsetid);
-	    $("#cogset-box").data("cogsetid", cogsetid);
+            // Set the value of prefid in two useful locations.
+	    $("body").data("prefid", prefid);
+	    $("#cogset-box").data("prefid", prefid);
             
             // URL for getting cogset JSON.
-            var url = cgiRoot + "query.cgi?qtype=cogset&cogsetid=" + cogsetid;
+            var url = cgiRoot + "query.cgi?qtype=cogset&prefid=" + prefid;
             
             // Callback which does most of the actual work of displaying cognet set and setting up events on it.
 	    var updateCogSetP = function(data) {
@@ -160,7 +160,7 @@ $(document).ready(
 			    var morphs = form.replace(/ /g, ' -').split('-');
 			    var formData = { form: form, 
 					     refid: refid, 
-					     cogsetid: cogsetid,
+					     prefid: prefid,
 					     morphs: morphs, 
 					     morphind: morphind, 
 					     gloss: gloss, 
@@ -207,8 +207,8 @@ $(document).ready(
 	var initCogSets = function() {
 
 	    var cogsets = $("#cogsets").jqGrid({
-		jsonReader : { repeatitems: false, id: "cogsetid" },
-		url: cgiRoot + 'query.cgi?qtype=cogsets',
+		jsonReader : { repeatitems: false, id: "refid" },
+		url: cgiRoot + 'query.cgi?qtype=cogsets&plangid=17',
 		editurl: cgiRoot + 'edit.cgi',
 		datatype: 'json',
 		mtype: 'GET',
@@ -216,7 +216,7 @@ $(document).ready(
 		width: 400,
 		colNames: ["Set ID", "Proto-form", "Gloss"],
 		colModel: [
-                    { name:'cogsetid', index:'cogsetid', width:50, hidden: false, search: false },
+                    { name:'refid', index:'refid', width:50, hidden: false, search: false },
 		    { name: 'form', index:'form', width:50, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:protoformFormat, unformat:protoformUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
@@ -226,13 +226,13 @@ $(document).ready(
 		pager: '#cogsets-pager',
 		rowNum: 100,
 		rowList: [25, 50, 100, 200],
-		sortname: 'cogsetid',
+		sortname: 'prefid',
 		sortorder: 'asc',
 		viewrecords: true,
 		caption: 'Proto-Forms',
-		onSelectRow: function(cogsetid) { 
-		    updateCogSet(cogsetid);
-		    $("body").data("cogsetid", cogsetid);
+		onSelectRow: function(refid) { 
+		    updateCogSet(refid);
+		    $("body").data("prefid", refid);
 		    console.log($("body").data());
 		}
 	    }).navGrid('#cogsets-pager', {view: false, search: false}, 
@@ -276,7 +276,7 @@ $(document).ready(
 		      formatter:reflexFormat, unformat:reflexUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:glossFormat, unformat:generalUnformat },
-		    { name: 'langid', index:'langid', width:50, align: 'left', editable: true, edittype: "select", 
+		    { name: 'reflexes.langid', index:'reflexes.langid', width:50, align: 'left', editable: true, edittype: "select", 
 		      editoptions: {size: 40, value:langnames},
 		      stype: "select", searchoptions: {value: ":All;" + objToSelectString(langnames)},
 		      formatter:langFormat, unformat:langUnformat }
@@ -295,9 +295,9 @@ $(document).ready(
 		},
 		gridComplete: function () {
 		    $(".tagged").click(function(obj) {
-			var cogsetid = obj.target.title;
-			$("body").data("cogsetid", cogsetid);
-			updateCogSet(cogsetid);
+			var prefid = obj.target.title;
+			$("body").data("prefid", prefid);
+			updateCogSet(prefid);
 		    });
 		}
 	    }).navGrid('#reflexes-pager',{view: false, search: false}, 
@@ -315,20 +315,20 @@ $(document).ready(
 
         /* ALL FUNCTIONS DEFINED: LET THE ACTION BEGIN... */
         
-        $("body").data({cogsetid: "0", refid: "0"});
+        $("body").data({prefid: "0", refid: "0"});
 
 	// Set keybindings here.
 
 	$(document).bind('keydown', 'Ctrl+a', function() {
 	    var data = { oper:"addtoset",
-			 cogsetid: $("body").data("cogsetid"), 
+			 prefid: $("body").data("prefid"), 
 			 refid: $("body").data("refid"),
 			 morphind: "0"};
 	    console.log(data);
 	    $.ajax({ url: cgiRoot + "edit.cgi", 
 		     data: data,
 		     type: "POST",
-		     success: function() { updateCogSet( $("body").data("cogsetid") ); }
+		     success: function() { updateCogSet( $("body").data("prefid") ); }
 		   });
 	});
 
@@ -367,7 +367,7 @@ $(document).ready(
         // Create the three major user-interface components.
 	var cogsets = initCogSets();
         cogsets.setGridHeight(winHeight * 0.80);
-	var cogset = updateCogSet( $("body").data("cogsetid") );
+	var cogset = updateCogSet( $("body").data("prefid") );
 	$.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
 		   function (langnames) {
                        var reflexes = initReflexes(langnames);
