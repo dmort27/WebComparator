@@ -1,4 +1,4 @@
--- Implements a Haskell interface to the JQGrid table widget using Database.HDBC and Data.JSON.
+-- | Implements a Haskell interface to the JQGrid table widget using Database.HDBC and Data.JSON.
 module Network.JQGrid ( JQGridQuery (..)
                       , SelectFields (..)
                       , SelectField (..)
@@ -63,22 +63,26 @@ instance Show JnType where
     show JnCross = "CROSS"
 
 data SelectJoin = JnNat JnType String
-                | JnOn JnType String String String
                 | JnSelNat JnType JQSelect
+                | JnOn JnType String String String
                 | JnSelOn JnType JQSelect String String
+                | JnUsing JnType String [String]
+                | JnSelUsing JnType JQSelect [String]
 instance Show SelectJoin where
     show (JnNat jnType table)                 = printf "NATURAL %s JOIN %s" (show jnType) table
-    show (JnOn jnType table field field')     = printf "%s JOIN %s ON %s=%s" (show jnType) table field field'
     show (JnSelNat jnType select)             = printf "NATURAL %s JOIN (%s)" (show jnType) (show select)
+    show (JnOn jnType table field field')     = printf "%s JOIN %s ON %s=%s" (show jnType) table field field'
     show (JnSelOn jnType select field field') = printf "%s JOIN (%s) ON %s=%s" (show jnType) (show select) field field'
+    show (JnUsing jnType table fields)     = printf "%s JOIN %s USING (%s)" (show jnType) table (intercalate "," fields)
+    show (JnSelUsing jnType select fields) = printf "%s JOIN (%s) USING (%s)" (show jnType) (show select) (intercalate "," fields)
 
 data SelectJoins = SelectJoins [SelectJoin]
 instance Show SelectJoins where
     show (SelectJoins joins) = intercalate " " $ map show joins
 
 data SelectCond = WhEqNum String Int | WhEqStr String String | WhLike String String
-               | WhTrue String | WhFalse String
-               | WhAnd [SelectCond] | WhOr [SelectCond] | WhNone
+                | WhTrue String | WhFalse String
+                | WhAnd [SelectCond] | WhOr [SelectCond] | WhNone
                  deriving (Eq)                 
 instance Show SelectCond where
     show (WhEqNum field value) = printf "%s=%d" field value
@@ -117,8 +121,8 @@ data JQSelect = JQSelect
     , selectSource :: SelectSource
     , selectJoins :: SelectJoins
     , selectWhere :: SelectWhere
-    , selectOrder :: SelectOrder
     , selectGroup :: SelectGroup
+    , selectOrder :: SelectOrder
     , selectLimit :: SelectLimit
     }
 instance Show JQSelect where
@@ -128,8 +132,8 @@ instance Show JQSelect where
                   , (show $ selectSource select)
                   , (show $ selectJoins select)
                   , (show $ selectWhere select)
-                  , (show $ selectOrder select)
                   , (show $ selectGroup select)
+                  , (show $ selectOrder select)
                   , (show $ selectLimit select)
                   ]
 
@@ -139,8 +143,8 @@ defaultJQSelect =
     , selectSource = SelectSource ""
     , selectJoins = SelectJoins []
     , selectWhere = SelectWhere WhNone
-    , selectOrder = SelectOrder []
     , selectGroup = SelectGroup []
+    , selectOrder = SelectOrder []
     , selectLimit = SelectLimitNone
     }
 
@@ -276,19 +280,14 @@ jqGridQuery table fields specFields sql inputs = JQGridQuery
 -- strings), a list of other fields (as SelectField), a list of joins
 -- (as JnTable), and an association list of parameters from the HTTP
 -- request, returns a JQSelect.
-jqSelect :: String  -> [String]  -> [SelectField] -> [SelectJoin] -> [SelectCond] -> [String] -> [(String,String)] -> JQSelect
-jqSelect source fields specFields joins wheres groupBys inputs = JQSelect
+jqSelect :: String  -> [String]  -> [SelectField] -> [SelectJoin] -> [SelectCond] -> [String] -> [(String,String)] -> [(String,String)] -> JQSelect
+jqSelect source fields specFields joins wheres groupBys orderBys inputs = JQSelect
     { selectFields = SelectFields $ (map SelectField fields) ++ specFields
     , selectSource = SelectSource source
     , selectJoins = SelectJoins joins
     , selectWhere = SelectWhere $ WhAnd wheres'
-    , selectOrder = case (maybeSidx, maybeSord) of
-                      (Just sidx, Just sord) -> 
-                          case (readMay sidx :: Maybe Int, readMay sord :: Maybe Int) of
-                            (Just i, Just o) -> SelectOrder [(sidx, sord)]
-                            _ -> SelectOrderNone
-                      _ -> SelectOrderNone
     , selectGroup = SelectGroup groupBys
+    , selectOrder = SelectOrder orderBys'
     , selectLimit = case (maybePage, maybeRows) of
                       (Just page, Just rows) -> SelectLimit (startRecord (read rows) (read page)) (read rows)
                       _ -> SelectLimitNone
@@ -298,6 +297,10 @@ jqSelect source fields specFields joins wheres groupBys inputs = JQSelect
       maybeRows = lookup "rows" inputs
       maybeSidx = lookup "sidx" inputs 
       maybeSord = lookup "sord" inputs 
+      orderBys' = (case (maybeSidx, maybeSord) of
+                     (Just sidx, Just sord) -> [(sidx, sord)]
+                     _ -> []
+                  ) ++ orderBys
       wheres' = wheres ++ [WhLike f v | (f, v) <- inputs, f `elem` fields]
 
 jqSelectResp :: Connection -> ([(String,String)] -> JQSelect) -> [(String,String)] -> IO JSValue

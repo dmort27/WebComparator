@@ -19,6 +19,7 @@ import qualified Data.ByteString.UTF8
 
 import Site
 
+
 data CogSetRow = CogSetRow 
     { csLangId :: SqlValue
     , csLangName :: SqlValue
@@ -39,6 +40,7 @@ instance JSON CogSetRow where
                  ]
     readJSON _ = return CogSetNull  -- not implemented
 
+{-
 data ReflexTableRecord = ReflexTableRecord
     { ctId :: Integer
     , ctGloss :: String
@@ -88,11 +90,9 @@ reflexRecords langs = do
   records <- quickQuery' conn "SELECT * FROM reflextable" [] >>= return . map (reflexRowToRecord langs)
   disconnect conn
   return $ RTRs records
+-}
 
-convertDelimList :: SqlValue -> JSValue
-convertDelimList SqlNull = JSArray []
-convertDelimList x = showJSON $ map showJSON $ Split.splitOn ";;;" (fromSql x :: String)
-
+{-
 -- Deprecated: cogsets table phrase out. Fix.
 cogSetSQL = "SELECT langid, name, GROUP_CONCAT(form, ';;;') AS forms, " ++ 
             "GROUP_CONCAT(gloss, ';;;') AS glosses, " ++
@@ -101,6 +101,11 @@ cogSetSQL = "SELECT langid, name, GROUP_CONCAT(form, ';;;') AS forms, " ++
             "FROM langnames " ++ 
             "LEFT NATURAL JOIN (SELECT langid, cogsetid, form, gloss, refid, morph_index FROM reflexes " ++
             "NATURAL JOIN reflex_of WHERE cogsetid=?) GROUP BY langid"
+-}
+
+convertDelimList :: SqlValue -> JSValue
+convertDelimList SqlNull = JSArray []
+convertDelimList x = showJSON $ map showJSON $ Split.splitOn ";;;" (fromSql x :: String)
 
 cogSetRespToJSON :: [[SqlValue]] -> JSValue
 cogSetRespToJSON  = 
@@ -121,7 +126,6 @@ getCogSetJSON inputs = do
         handleSqlError $ do
                          conn <- connectDB
                          json <- quickQuery' conn (show $ cogsetSelect inputs) [] >>= return . cogSetRespToJSON
-                         --json <- return $ showJSON $ show $ cogsetSelect inputs
                          disconnect conn
                          return json
                          
@@ -137,7 +141,8 @@ cogsetSelect params = jqSelect "langnames"
                       [ JnSelNat JnLeft reflexes]
                       [ WhTrue "display" ]
                       [ "langid" ]
-                      params
+                      [("langgrp","ASC"), ("name","ASC")] -- Order by
+                      (params)
                           where
                             reflexes = jqSelect "reflexes"
                                        ["langid", "prefid", "form", "gloss", "refid", "morph_index" ]
@@ -145,35 +150,50 @@ cogsetSelect params = jqSelect "langnames"
                                        [JnNat JnPlain "reflex_of"]
                                        [WhEqNum "prefid" $ read $ fromJust $ lookup "prefid" params]
                                        []
+                                       [] -- Order by
                                        []
 
 reflexesSelect :: [(String, String)] -> JQSelect
-reflexesSelect = jqSelect "reflexes" 
-                 ["refid", "form", "gloss", "reflexes.langid"] 
-                 [SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph"] 
-                 [JnNat JnLeft "reflex_of", JnOn JnPlain "langnames" "reflexes.langid" "langnames.langid"] 
-                 [WhTrue "display"]
-                 ["refid"] 
+reflexesSelect params = jqSelect "reflexes" 
+                        [ "refid", "form", "gloss" ] 
+                        [ SelectFieldAs "reflexes.langid" "langid"
+                        , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph"] 
+                        [ JnUsing JnLeft "reflex_of" ["refid"]
+                        , JnOn JnLeft "langnames" "langnames.langid" "reflexes.langid"] 
+                        ([WhTrue "display"] ++ wheres)
+                        ["refid"] 
+                        [] -- Order by
+                        params
+    where
+      strFields = ["form", "gloss"]
+      numFields = ["refid", "langid"]
+      wheres = [WhLike (relativize f) v | (f, v) <- params, f `elem` strFields] ++
+               [WhEqNum (relativize f) (read v) | (f, v) <- params, f `elem` numFields]
+      relativize "langid" = "reflexes.langid"
+      relativize x = x
 
 protoSelect :: [(String, String)] -> JQSelect
 protoSelect params = jqSelect "reflexes"
               ["refid", "form", "gloss"]
               []
               []
-              [WhEqNum "langid" langid]
+              ([WhEqNum "langid" plangid] ++ wheres)
               []
+              [] -- Order by
               params
     where
-      langid = read $ fromMaybe "0" $ lookup "plangid" params
+      plangid = read $ fromMaybe "0" $ lookup "plangid" params
+      strFields = ["form", "gloss"]
+      wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
 
 -- Builds a hash-table (as a JSON object) from an SQL table given a
 -- table name, the field to use for the key, and the field to use as
 -- the value.
-getJSONMap :: String -> String -> String -> IO JSValue
-getJSONMap table key value = withDbConnection getJSONMap'
+getJSONMap :: String -> String -> String -> String -> IO JSValue
+getJSONMap table key value wh = withDbConnection getJSONMap'
     where
       getJSONMap' conn = quickQuery' conn sql [] >>= return . makeObj . map (\[k,v] -> (fromSql k, showJSON v))
-      sql = printf "SELECT %s, %s FROM %s" key value table
+      sql = printf "SELECT %s, %s FROM %s %s" key value table wh
 
 -- Returns data suitable for populating a JQGrid based on a JQGridQuery object.
 getJSONGrid :: JQGridQuery -> IO JSValue
@@ -202,7 +222,7 @@ cgiMain = do
   conn <- liftIO connectDB
   json <- getInputs >>= liftIO . handleSqlError .
           (case qType of
-             Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name")
+             Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name" "WHERE display ORDER BY langgrp, name")
              Just "cogset" -> getCogSetJSON
              Just "cogsets" -> jqSelectResp conn $ protoSelect
              Just "reflexes" -> jqSelectResp conn $ reflexesSelect

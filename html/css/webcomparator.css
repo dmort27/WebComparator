@@ -26,12 +26,17 @@
 }
 
 #cogset-box { 
-    height: 100%; 
+    /* height: 100%; */
+    /* overflow: scroll; */
+}
+
+#cogset-table>tbody {
+    overflow: scroll;
 }
 
 #cogset-table { 
     width: 300px;
-    height: auto; 
+    /* height: auto; */
     table-layout: fixed;
     white-space: normal;
     border-collapse: collapse;

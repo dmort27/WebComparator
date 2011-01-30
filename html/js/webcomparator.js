@@ -213,10 +213,10 @@ $(document).ready(
 		datatype: 'json',
 		mtype: 'GET',
 		height: 500,
-		width: 400,
+		width: 350,
 		colNames: ["Set ID", "Proto-form", "Gloss"],
 		colModel: [
-                    { name:'refid', index:'refid', width:50, hidden: false, search: false },
+                    { name:'refid', index:'refid', width:50, hidden: true, search: false },
 		    { name: 'form', index:'form', width:50, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:protoformFormat, unformat:protoformUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
@@ -226,8 +226,8 @@ $(document).ready(
 		pager: '#cogsets-pager',
 		rowNum: 100,
 		rowList: [25, 50, 100, 200],
-		sortname: 'prefid',
-		sortorder: 'asc',
+		sortname: 'refid',
+		sortorder: 'ASC',
 		viewrecords: true,
 		caption: 'Proto-Forms',
 		onSelectRow: function(refid) { 
@@ -267,16 +267,16 @@ $(document).ready(
 		datatype: 'json',
 		mtype: 'GET',
 		height: 500,
-		width: 500,
+		width: 400,
 		colNames: ["ID", "Cognate Morph Map", "Form", "Gloss", "Language"],
 		colModel: [
-                    { name: 'refid', index:'refid', width:50, hidden: false, search: false },
+                    { name: 'refid', index:'refid', width:50, hidden: true, search: false },
 		    { name: 'cogmorph', index:'cogmorph', width:50, hidden: true, search: false },
 		    { name: 'form', index:'form', width:75, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:reflexFormat, unformat:reflexUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:glossFormat, unformat:generalUnformat },
-		    { name: 'reflexes.langid', index:'reflexes.langid', width:50, align: 'left', editable: true, edittype: "select", 
+		    { name: 'langid', index:'langid', width:50, align: 'left', editable: true, edittype: "select", 
 		      editoptions: {size: 40, value:langnames},
 		      stype: "select", searchoptions: {value: ":All;" + objToSelectString(langnames)},
 		      formatter:langFormat, unformat:langUnformat }
@@ -286,7 +286,7 @@ $(document).ready(
 		rowNum: 100,
 		rowList: [25, 50, 100, 200],
 		sortname: 'refid',
-		sortorder: 'asc',
+		sortorder: 'ASC',
 		viewrecords: true,
 		caption: 'Reflexes',
 		onSelectRow: function (refid, status) { 
@@ -368,6 +368,7 @@ $(document).ready(
 	var cogsets = initCogSets();
         cogsets.setGridHeight(winHeight * 0.80);
 	var cogset = updateCogSet( $("body").data("prefid") );
+        $("#cogset-table tbody").height(winHeight * 0.80);
 	$.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
 		   function (langnames) {
                        var reflexes = initReflexes(langnames);
