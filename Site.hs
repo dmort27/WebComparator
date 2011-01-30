@@ -3,6 +3,6 @@ module Site where
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
-sqliteFile = "/tmp/Tangkhul3.db"
+sqliteFile = "/var/webcomparator/WebCompBorderlands.sqlite"
 
 connectDB = connectSqlite3 sqliteFile
