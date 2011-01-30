@@ -14,5 +14,6 @@ cp  html/css/*.css $CGI/webcomparator/css/
 cp dist/build/query.cgi/query.cgi $CGIBIN
 cp dist/build/edit.cgi/edit.cgi $CGIBIN
 mkdir -p $DB
-cp data/Tangkhul3.db $DB
-chmod a+rw $DB/Tangkhul3.db
+chmod a+rwx $DB
+cp data/WebCompBorderlands.sqlite $DB
+chmod a+rw $DB/WebCompBorderlands.sqlite
