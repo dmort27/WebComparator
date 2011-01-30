@@ -18,32 +18,43 @@ import qualified Data.ByteString.UTF8
 
 import Site
 
-data TableInfo = TableInfo { tableUniqueId :: String
-                           , tableEditableFields :: [String]
-                           }
+data TableInfo = TableInfo 
+    { tableName :: String
+    , tableUniqueId :: String
+    , tableEditableFields :: [String]
+    }
 
-addRecord table inputs = return JSNull
+-- | Information about tables for the two objects of edits.
+tableInfo :: [(String, TableInfo)]
+tableInfo = [ ( "reflexes"
+              , TableInfo "reflexes" "refid" ["form","gloss","langid"] )
+            , ( "cogsets"
+              , TableInfo "reflexes" "refid" ["form","gloss","plangid"] ) ]
 
-tableInfo = [ ("reflexes", TableInfo "refid" ["form","gloss","langid"])
-            , ("cogsets", TableInfo "cogsetid" ["form","gloss"])
-            ]
-
+-- | Given an association list of parameters, a table name, and a
+-- database connection, @actionAdd@ inserts a new into the approprate
+-- table and returns a JSON object containing the SQL used for the
+-- transaction.
 actionAdd :: IConnection conn => [(String, String)] -> String -> conn -> IO JSValue
 actionAdd inputs table conn = do
   withTransaction conn $ \c -> run c sql params
   [[id]] <- quickQuery' conn "SELECT last_insert_rowid()" []
-  return $ showJSON id
+  return $ showJSON sql
     where
       tableInfo' = fromJust $ lookup table tableInfo
       uniqueId = tableUniqueId tableInfo'
       fields = tableEditableFields tableInfo'
       editPairs =  [(k, v) | (k, v) <- inputs, k `elem` fields]
       sql = printf "INSERT INTO %s (%s) VALUES (%s)" 
-            table 
+            (tableName tableInfo')
             (intercalate "," $ map fst editPairs) 
             (intercalate "," $ map (\_ -> "?") editPairs) :: String
       params = map (toSql . snd) editPairs
 
+-- | Given an association list of parameters, a table name, and a
+-- database connection, @actionUpdate@ updates a database record and
+-- returns a JSON object containing the update paramaters and the SQL
+-- used for the transaction.
 actionUpdate :: (IConnection conn) => [(String, String)] -> String -> conn -> IO JSValue
 actionUpdate inputs table conn = do
   withTransaction conn $ \c -> run c sql params
@@ -55,46 +66,52 @@ actionUpdate inputs table conn = do
       id = read $ fromJust $ lookup "id" inputs :: Integer
       editPairs =  [(k, v) | (k, v) <- inputs, k `elem` fields]
       updates = intercalate "," $ map (\(k, v) -> printf "%s=?" k :: String) editPairs
-      sql = printf "UPDATE %s SET %s WHERE %s=?" table updates uniqueId :: String
+      sql = printf "UPDATE %s SET %s WHERE %s=?" (tableName tableInfo') updates uniqueId :: String
       params = map (toSql . snd) editPairs ++ [toSql id]
 
+-- | Given an association list of parameters, a table name, and a
+-- database connection, @actionDelete@ deletes a rows from the
+-- database. It returns a JSON object containing the SQL query and the
+-- parameters passed to the script.
 actionDelete :: (IConnection conn) => [(String, String)] -> String -> conn -> IO JSValue
-actionDelete inputs table conn = withTransaction conn $ \c -> run c sql params 
-                                 >> return (makeObj [("sql", showJSON sql), ("params", showJSON params)])
-    where
-      tableInfo' = fromJust $ lookup table tableInfo
-      uniqueId = tableUniqueId tableInfo'
-      id = read $ fromJust $ lookup "id" inputs
-      sql = printf "DELETE FROM %s WHERE %s=?" table uniqueId
-      params = [SqlInteger id]
+actionDelete inputs table conn = 
+    withTransaction conn $ \c -> run c sql params 
+    >> return (makeObj [("sql", showJSON sql), ("params", showJSON params)])
+        where
+          tableInfo' = fromJust $ lookup table tableInfo
+          uniqueId = tableUniqueId tableInfo'
+          id = read $ fromJust $ lookup "id" inputs
+          sql = printf "DELETE FROM %s WHERE %s=?" (tableName tableInfo') uniqueId
+          params = [SqlInteger id]
     
 actionAddToSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
 actionAddToSet inputs conn = do
   withTransaction conn $ \c -> run c sql params
   return JSNull
       where
-        sql = "INSERT INTO reflex_of (refid, cogsetid, morph_index) VALUES (?, ?, ?)"
+        sql = "INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)"
+        plangid = read $ fromJust $ lookup "plangid" inputs
         refid = read $ fromJust $ lookup "refid" inputs
-        cogsetid = read $ fromJust $ lookup "cogsetid" inputs
+        prefid = read $ fromJust $ lookup "prefid" inputs
         morphInd = read $ fromMaybe "0" $ lookup "morphind" inputs
-        params = map SqlInteger [refid, cogsetid, morphInd]
+        params = map SqlInteger [refid, prefid, plangid, morphInd]
 
 actionRemoveFromSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
 actionRemoveFromSet inputs conn = withTransaction conn $ \c -> run c sql params >> return JSNull
       where
-        sql = "DELETE FROM reflex_of WHERE refid=? AND cogsetid=?"
+        sql = "DELETE FROM reflex_of WHERE refid=? AND prefid=?"
         refid = read $ fromJust $ lookup "refid" inputs
-        cogsetid = read $ fromJust $ lookup "cogsetid" inputs
-        params = map SqlInteger [refid, cogsetid]
+        prefid = read $ fromJust $ lookup "prefid" inputs
+        params = map SqlInteger [refid, prefid]
 
 actionSetMorphInd :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
 actionSetMorphInd inputs conn =  withTransaction conn $ \c -> run c sql params >> return JSNull
       where
-        sql = "UPDATE reflex_of SET morph_index=? WHERE refid=? AND cogsetid=?"
+        sql = "UPDATE reflex_of SET morph_index=? WHERE refid=? AND prefid=?"
         refid = read $ fromJust $ lookup "refid" inputs
-        cogsetid = read $ fromJust $ lookup "cogsetid" inputs
+        prefid = read $ fromJust $ lookup "prefid" inputs
         morphInd = read $ fromJust $ lookup "morphind" inputs
-        params = map SqlInteger [morphInd, refid, cogsetid]
+        params = map SqlInteger [morphInd, refid, prefid]
 
 withDbConnection action = handleSqlError $ do
       conn <- connectDB
