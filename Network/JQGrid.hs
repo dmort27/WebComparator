@@ -50,9 +50,10 @@ instance Show SelectField where
     show (SelectField f) = f
     show (SelectFieldAs f f') = f ++ " AS " ++ f'
 
-data SelectSource = SelectSource String
+data SelectSource = SelectSource String | SelectJQSelect JQSelect
 instance Show SelectSource where
     show (SelectSource table) = "FROM " ++ table
+    show (SelectJQSelect jqSelect) = "FROM (" ++ (show jqSelect) ++ ")"
 
 data JnType = JnPlain | JnLeft | JnLeftOuter | JnInner | JnCross
 instance Show JnType where
@@ -81,6 +82,7 @@ instance Show SelectJoins where
     show (SelectJoins joins) = intercalate " " $ map show joins
 
 data SelectCond = WhEqNum String Int | WhEqStr String String | WhLike String String
+                | WhNull String | WhNotNull String
                 | WhTrue String | WhFalse String
                 | WhAnd [SelectCond] | WhOr [SelectCond] | WhNone
                  deriving (Eq)                 
@@ -88,6 +90,8 @@ instance Show SelectCond where
     show (WhEqNum field value) = printf "%s=%d" field value
     show (WhEqStr field value) = printf "%s='%s'" field $ makeSafe value
     show (WhLike field value) = printf "%s LIKE '%%%s%%'" field $ makeSafe value
+    show (WhNull field) = printf "%s IS NULL" field
+    show (WhNotNull field) = printf "%s IS NOT NULL" field
     show (WhTrue field) = printf "%s" field
     show (WhFalse field) = printf "NOT %s" field
     show (WhAnd conds) = parenthesize $ intercalate " AND " $ map show conds
@@ -280,10 +284,10 @@ jqGridQuery table fields specFields sql inputs = JQGridQuery
 -- strings), a list of other fields (as SelectField), a list of joins
 -- (as JnTable), and an association list of parameters from the HTTP
 -- request, returns a JQSelect.
-jqSelect :: String  -> [String]  -> [SelectField] -> [SelectJoin] -> [SelectCond] -> [String] -> [(String,String)] -> [(String,String)] -> JQSelect
+jqSelect :: SelectSource  -> [String]  -> [SelectField] -> [SelectJoin] -> [SelectCond] -> [String] -> [(String,String)] -> [(String,String)] -> JQSelect
 jqSelect source fields specFields joins wheres groupBys orderBys inputs = JQSelect
     { selectFields = SelectFields $ (map SelectField fields) ++ specFields
-    , selectSource = SelectSource source
+    , selectSource = source
     , selectJoins = SelectJoins joins
     , selectWhere = SelectWhere $ WhAnd wheres'
     , selectGroup = SelectGroup groupBys

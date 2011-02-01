@@ -125,36 +125,67 @@ getCogSetJSON inputs = do
     Just prefid -> 
         handleSqlError $ do
                          conn <- connectDB
-                         json <- quickQuery' conn (show $ cogsetSelect inputs) [] >>= return . cogSetRespToJSON
+                         json <- quickQuery' conn (show $ cogsetSelect' inputs) [] >>= return . cogSetRespToJSON
                          disconnect conn
                          return json
                          
     Nothing -> return $ showJSON "Error! No cogsetid given."
 
 cogsetSelect :: [(String, String)] -> JQSelect
-cogsetSelect params = jqSelect "langnames"
+cogsetSelect params = jqSelect (SelectSource "langnames")
                       [ "langid", "name" ]
                       [ SelectFieldAs "GROUP_CONCAT(form, ';;;')" "forms"
                       , SelectFieldAs "GROUP_CONCAT(gloss, ';;;')" "glosses"
                       , SelectFieldAs "GROUP_CONCAT(refid, ';;;')" "refids"
                       , SelectFieldAs "GROUP_CONCAT(morph_index, ';;;')" "morphinds" ]
-                      [ JnSelNat JnLeft reflexes]
+                      [ JnSelUsing JnLeft reflexes ["langid"]]
                       [ WhTrue "display" ]
                       [ "langid" ]
                       [("langgrp","ASC"), ("name","ASC")] -- Order by
                       (params)
                           where
-                            reflexes = jqSelect "reflexes"
+                            plangid = read $ fromJust $ lookup "plangid" params :: Int
+                            reflexes = jqSelect (SelectSource "reflexes")
                                        ["langid", "prefid", "form", "gloss", "refid", "morph_index" ]
                                        []
-                                       [JnNat JnPlain "reflex_of"]
+                                       [JnUsing JnPlain "reflex_of" ["refid"]]
                                        [WhEqNum "prefid" $ read $ fromJust $ lookup "prefid" params]
                                        []
                                        [] -- Order by
                                        []
 
+cogsetSelect' :: [(String, String)] -> JQSelect
+cogsetSelect' params = jqSelect (SelectJQSelect langs)
+                       [ "langid", "name" ]
+                      [ SelectFieldAs "GROUP_CONCAT(form, ';;;')" "forms"
+                      , SelectFieldAs "GROUP_CONCAT(gloss, ';;;')" "glosses"
+                      , SelectFieldAs "GROUP_CONCAT(refid, ';;;')" "refids"
+                      , SelectFieldAs "GROUP_CONCAT(morph_index, ';;;')" "morphinds" ]
+                      [ JnSelUsing JnLeft reflexes ["langid"]]
+                      []
+                      ["langid"]
+                      [("name", "ASC")]
+                      (params)
+                          where
+                            reflexes = jqSelect (SelectSource "reflexes")
+                                       ["langid", "prefid", "form", "gloss", "refid", "morph_index" ]
+                                       []
+                                       [ JnUsing JnPlain "reflex_of" ["refid"] ]
+                                       [ WhEqNum "prefid" $ read $ fromJust $ lookup "prefid" params ]
+                                       []
+                                       [] -- Order by
+                                       []
+                            langs = jqSelect (SelectSource "descendant_of")
+                                    ["langid", "name"]
+                                    []
+                                    [JnUsing JnPlain "langnames" ["langid"]]
+                                    [WhEqNum "plangid" $ read $ fromJust $ lookup "plangid" params, WhTrue "display"]
+                                    []
+                                    []
+                                    params
+
 reflexesSelect :: [(String, String)] -> JQSelect
-reflexesSelect params = jqSelect "reflexes" 
+reflexesSelect params = jqSelect (SelectSource "reflexes")
                         [ "refid", "form", "gloss" ] 
                         [ SelectFieldAs "reflexes.langid" "langid"
                         , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph"] 
@@ -173,7 +204,7 @@ reflexesSelect params = jqSelect "reflexes"
       relativize x = x
 
 protoSelect :: [(String, String)] -> JQSelect
-protoSelect params = jqSelect "reflexes"
+protoSelect params = jqSelect (SelectSource "reflexes")
               ["refid", "form", "gloss"]
               []
               []
@@ -182,7 +213,7 @@ protoSelect params = jqSelect "reflexes"
               [] -- Order by
               params
     where
-      plangid = read $ fromMaybe "0" $ lookup "plangid" params
+      plangid = read $ fromMaybe "0" $ lookup "langid" params
       strFields = ["form", "gloss"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
 
@@ -193,7 +224,7 @@ getJSONMap :: String -> String -> String -> String -> IO JSValue
 getJSONMap table key value wh = withDbConnection getJSONMap'
     where
       getJSONMap' conn = quickQuery' conn sql [] >>= return . makeObj . map (\[k,v] -> (fromSql k, showJSON v))
-      sql = printf "SELECT %s, %s FROM %s %s" key value table wh
+      sql = printf "SELECT DISTINCT %s, %s FROM %s %s" key value table wh
 
 -- Returns data suitable for populating a JQGrid based on a JQGridQuery object.
 getJSONGrid :: JQGridQuery -> IO JSValue
@@ -223,6 +254,8 @@ cgiMain = do
   json <- getInputs >>= liftIO . handleSqlError .
           (case qType of
              Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name" "WHERE display ORDER BY langgrp, name")
+             Just "plangnames" ->  \_ -> (getJSONMap "langnames JOIN descendant_of ON langnames.langid=descendant_of.plangid" 
+                                                         "plangid" "name" "ORDER BY name")
              Just "cogset" -> getCogSetJSON
              Just "cogsets" -> jqSelectResp conn $ protoSelect
              Just "reflexes" -> jqSelectResp conn $ reflexesSelect

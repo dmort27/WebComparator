@@ -134,12 +134,14 @@ $(document).ready(
 	// Refreshes the display of the current cognate set.
 	var updateCogSet = function(prefid) {
 
+	    var plangid = $("#plangid").val();
+	    
             // Set the value of prefid in two useful locations.
 	    $("body").data("prefid", prefid);
 	    $("#cogset-box").data("prefid", prefid);
             
             // URL for getting cogset JSON.
-            var url = cgiRoot + "query.cgi?qtype=cogset&prefid=" + prefid;
+            var url = cgiRoot + "query.cgi?qtype=cogset&prefid=" + prefid + "&plangid=" + plangid;
             
             // Callback which does most of the actual work of displaying cognet set and setting up events on it.
 	    var updateCogSetP = function(data) {
@@ -204,15 +206,15 @@ $(document).ready(
 
 
         // Create the cogsets table (which lists the protoforms and glosses).
-	var initCogSets = function() {
+	var initCogSets = function(plangid) {
 
 	    var cogsets = $("#cogsets").jqGrid({
 		jsonReader : { repeatitems: false, id: "refid" },
-		url: cgiRoot + 'query.cgi?qtype=cogsets&plangid=17',
+		url: cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid,
 		editurl: cgiRoot + 'edit.cgi',
 		datatype: 'json',
 		mtype: 'GET',
-		height: 500,
+		height: "100%",
 		width: 350,
 		colNames: ["Set ID", "Proto-form", "Gloss"],
 		colModel: [
@@ -236,9 +238,9 @@ $(document).ready(
 		    console.log($("body").data());
 		}
 	    }).navGrid('#cogsets-pager', {view: false, search: false}, 
-		       {editData: {table: 'cogsets'}}, 
-		       {editData: {table: 'cogsets'}}, 
-		       {url: cgiRoot + 'edit.cgi?table=reflexes'}, 
+		       {editData: {table: 'cogsets', langid: plangid}}, 
+		       {editData: {table: 'cogsets', langid: plangid}}, 
+		       {url: cgiRoot + 'edit.cgi?table=reflexes&langid=' + plangid}, 
 		       {}, 
 		       {});
 	    $('#cogsets').jqGrid('filterToolbar', {autosearch: true, groupOn: 'AND'});
@@ -266,7 +268,7 @@ $(document).ready(
 		editurl: cgiRoot + 'edit.cgi',
 		datatype: 'json',
 		mtype: 'GET',
-		height: 500,
+		height: "100%",
 		width: 400,
 		colNames: ["ID", "Cognate Morph Map", "Form", "Gloss", "Language"],
 		colModel: [
@@ -323,6 +325,7 @@ $(document).ready(
 	    var data = { oper:"addtoset",
 			 prefid: $("body").data("prefid"), 
 			 refid: $("body").data("refid"),
+			 plangid: $("#plangid").val(),
 			 morphind: "0"};
 	    console.log(data);
 	    $.ajax({ url: cgiRoot + "edit.cgi", 
@@ -335,6 +338,8 @@ $(document).ready(
         var winHeight = $(window).height();
         var winWidth = $(window).width();
 
+        $("#controls").height(winHeight * 0.9).width(winWidth * 0.9);
+        
         var authDialog = $("#auth-dialog").dialog({
             autoOpen: false,
             closeOnEscape: false,
@@ -364,11 +369,40 @@ $(document).ready(
             }
         });
         
+	var protoLangSelector = function(plangnames) {
+	    $.each(plangnames, function(k, v) {
+		$("#plangid").append("<option value='" + k + "'>" + v + "</option>");
+	    });
+
+	    $("#plangid").change(function() {
+		var plangid = $("#plangid").val();
+		console.log("plangid=" + plangid);
+		var url = cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid;
+		$("#cogsets").jqGrid().setGridParam({url : url}).trigger("reloadGrid");
+		$("#cogsets").jqGrid('navGrid', '#cogsets-pager',
+			     {view: false, search: false}, 
+			     {editData: {table: 'cogsets', langid: plangid}}, 
+			     {editData: {table: 'cogsets', langid: plangid}}, 
+			     {url: cgiRoot + 'edit.cgi?table=cogsets&langid=' + plangid},
+			     {}, 
+			     {});
+		updateCogSet(0);
+	    });
+
+	    $("#plangid").val("17");
+	    return $("#plangid").val(); // default plangid
+	};
+
         // Create the three major user-interface components.
-	var cogsets = initCogSets();
-        cogsets.setGridHeight(winHeight * 0.80);
-	var cogset = updateCogSet( $("body").data("prefid") );
-        $("#cogset-table tbody").height(winHeight * 0.80);
+	$.getJSON( cgiRoot + "query.cgi?qtype=plangnames",
+		   function(plangnames) {
+		       var plangid = protoLangSelector(plangnames);
+		       var cogsets = initCogSets(plangid);
+		       cogsets.setGridHeight(winHeight * 0.80);
+		       var cogset = updateCogSet( $("body").data("prefid") );
+		   }
+		 );
+        // $("#cogset-table").height(winHeight * 0.80);
 	$.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
 		   function (langnames) {
                        var reflexes = initReflexes(langnames);

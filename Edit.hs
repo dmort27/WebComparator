@@ -29,7 +29,7 @@ tableInfo :: [(String, TableInfo)]
 tableInfo = [ ( "reflexes"
               , TableInfo "reflexes" "refid" ["form","gloss","langid"] )
             , ( "cogsets"
-              , TableInfo "reflexes" "refid" ["form","gloss","plangid"] ) ]
+              , TableInfo "reflexes" "refid" ["form","gloss","langid"] ) ]
 
 -- | Given an association list of parameters, a table name, and a
 -- database connection, @actionAdd@ inserts a new into the approprate
@@ -39,7 +39,7 @@ actionAdd :: IConnection conn => [(String, String)] -> String -> conn -> IO JSVa
 actionAdd inputs table conn = do
   withTransaction conn $ \c -> run c sql params
   [[id]] <- quickQuery' conn "SELECT last_insert_rowid()" []
-  return $ showJSON sql
+  return $ makeObj [("sql", showJSON sql), ("params", makeObj [(k, showJSON v) | (k, v) <- editPairs])]
     where
       tableInfo' = fromJust $ lookup table tableInfo
       uniqueId = tableUniqueId tableInfo'

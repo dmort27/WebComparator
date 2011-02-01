@@ -25,18 +25,17 @@
     user-select: none;
 }
 
-#cogset-box { 
-    /* height: 100%; */
-    /* overflow: scroll; */
+#controls {
+    background-color: black;
 }
 
-#cogset-table>tbody {
-    overflow: scroll;
+#cogset-box { 
+    overflow: auto;
 }
 
 #cogset-table { 
     width: 300px;
-    /* height: auto; */
+    overflow: auto;
     table-layout: fixed;
     white-space: normal;
     border-collapse: collapse;
