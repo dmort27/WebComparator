@@ -191,7 +191,7 @@ reflexesSelect params = jqSelect (SelectSource "reflexes")
                         , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph"] 
                         [ JnUsing JnLeft "reflex_of" ["refid"]
                         , JnOn JnLeft "langnames" "langnames.langid" "reflexes.langid"] 
-                        ([WhTrue "display"] ++ wheres)
+                        ([WhTrue "display", WhEqNum "plangid" $ read $ fromJust $ lookup "plangid" params] ++ wheres)
                         ["refid"] 
                         [] -- Order by
                         params

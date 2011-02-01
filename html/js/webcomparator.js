@@ -210,8 +210,9 @@ $(document).ready(
 
 	    var cogsets = $("#cogsets").jqGrid({
 		jsonReader : { repeatitems: false, id: "refid" },
-		url: cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid,
+		url: cgiRoot + 'query.cgi?qtype=cogsets' + plangid,
 		editurl: cgiRoot + 'edit.cgi',
+		editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } },
 		datatype: 'json',
 		mtype: 'GET',
 		height: "100%",
@@ -238,8 +239,8 @@ $(document).ready(
 		    console.log($("body").data());
 		}
 	    }).navGrid('#cogsets-pager', {view: false, search: false}, 
-		       {editData: {table: 'cogsets', langid: plangid}}, 
-		       {editData: {table: 'cogsets', langid: plangid}}, 
+		       {editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } }}, 
+		       {editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } }}, 
 		       {url: cgiRoot + 'edit.cgi?table=reflexes&langid=' + plangid}, 
 		       {}, 
 		       {});
@@ -266,6 +267,8 @@ $(document).ready(
 		jsonReader : { repeatitems: false, id: "refid" },
 		url: cgiRoot + 'query.cgi?qtype=reflexes',
 		editurl: cgiRoot + 'edit.cgi',
+		data: { plangid: function() {return $("#plangid").val(); } },
+		editData: { plangid: function() {return $("#plangid").val(); } },
 		datatype: 'json',
 		mtype: 'GET',
 		height: "100%",
@@ -377,19 +380,20 @@ $(document).ready(
 	    $("#plangid").change(function() {
 		var plangid = $("#plangid").val();
 		console.log("plangid=" + plangid);
-		var url = cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid;
-		$("#cogsets").jqGrid().setGridParam({url : url}).trigger("reloadGrid");
-		$("#cogsets").jqGrid('navGrid', '#cogsets-pager',
-			     {view: false, search: false}, 
-			     {editData: {table: 'cogsets', langid: plangid}}, 
-			     {editData: {table: 'cogsets', langid: plangid}}, 
-			     {url: cgiRoot + 'edit.cgi?table=cogsets&langid=' + plangid},
-			     {}, 
-			     {});
+		var cogsetUrl = cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid;
+		$("#cogsets").jqGrid().setGridParam({
+		    url : cogsetUrl, 
+		    editData: {langid: plangid}
+		}).trigger("reloadGrid");
+		var reflexesUrl = cgiRoot + 'query.cgi?qtype=reflexes&plangid=' + plangid;
+		$("#reflexes").jqGrid().setGridParam({
+		    url : reflexesUrl, 
+		    editData: {langid: plangid}
+		}).trigger("reloadGrid");
 		updateCogSet(0);
 	    });
 
-	    $("#plangid").val("17");
+	    $("#plangid").val("18");
 	    return $("#plangid").val(); // default plangid
 	};
 
