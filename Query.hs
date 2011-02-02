@@ -246,7 +246,6 @@ mapPair f (a, b) = (f a, f b)
 -- to different functions generating JSON based on the value of qtype.
 cgiMain :: CGIT IO CGIResult
 cgiMain = do
-  setHeader "Content-Type" "application/json; charset=utf-8"
   qType <- getInput "qtype"
   conn <- liftIO connectDB
   json <- getInputs >>= liftIO . handleSqlError .
@@ -260,6 +259,7 @@ cgiMain = do
              _ -> jqSelectResp conn $ reflexesSelect'
           )
   liftIO $ disconnect conn
+  setHeader "Content-Type" "application/json; charset=utf-8"
   output $ encodeString $ encode $ json
 
 main :: IO ()

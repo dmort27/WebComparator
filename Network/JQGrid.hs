@@ -323,15 +323,26 @@ jqSelect' jqselect params =
 jqSelectCount :: JQSelect ->  JQSelect
 jqSelectCount jqselect = 
     jqselect { selectFields = SelectFields [SelectFieldAs "COUNT(*)" "n"]
+             , selectJoins = SelectJoins $ filter (\x -> case x of
+                                                           JnSelNat _ _ -> False
+                                                           JnSelOn _ _ _ _ -> False
+                                                           JnSelUsing _ _ _ -> False
+                                                           _ -> True) (joins)
+             , selectLimit = SelectLimitNone
              }
+    where
+      SelectJoins joins = selectJoins jqselect
 
 jqSelectResp :: Connection -> ([(String,String)] -> JQSelect) -> [(String,String)] -> IO JSValue
 jqSelectResp conn select params = do
-  records <- quickQuery' conn (show jqCount) [] >>= return . fromSql . head . head
-  let totalPages = pageCount records rows
+  records <- quickQuery' conn (show jqCount) []
+  let records' = case records of
+                   [[n]] -> fromSql n
+                   _ -> error ("The SQL " ++ (show jqCount) ++ " yielding the invalid results " ++ (show records))
+  let totalPages = pageCount records' rows
   let page' = if (page <= totalPages) then page else totalPages
   rows <- quickQuery' conn (show jqSelect) []
-  return $ showJSON $ JQGridResp totalPages page' records (map (toJQGridTableRow fieldNames) rows) (show jqSelect)
+  return $ showJSON $ JQGridResp totalPages page' records' (map (toJQGridTableRow fieldNames) rows) (show jqSelect)
       where
         jqSelect = select params
         jqCount = jqSelectCount jqSelect
