@@ -19,7 +19,6 @@ import qualified Data.ByteString.UTF8
 
 import Site
 
-
 data CogSetRow = CogSetRow 
     { csLangId :: SqlValue
     , csLangName :: SqlValue
@@ -39,69 +38,6 @@ instance JSON CogSetRow where
                  , convertDelimList morphInds
                  ]
     readJSON _ = return CogSetNull  -- not implemented
-
-{-
-data ReflexTableRecord = ReflexTableRecord
-    { ctId :: Integer
-    , ctGloss :: String
-    , ctProtoForm :: String
-    , ctReflexes :: [Maybe String]
-    } deriving (Eq)
-
-instance Show ReflexTableRecord where
-    show (ReflexTableRecord id gloss protoform reflexes) = 
-        (intercalate "\t" $ [show id, ("*"++protoform)] ++ (map (fromMaybe "---") reflexes)) ++ "\n"
-
-data RTRs = RTRs [ReflexTableRecord]
-
-instance Show RTRs where
-    show (RTRs xs) = concatMap show xs
-
-reflexRowToRecord :: [Integer] -> [SqlValue] -> ReflexTableRecord
-reflexRowToRecord langIds (id:gloss:protoform:reflexes) = 
-    ReflexTableRecord { ctId = fromSql id
-                      , ctGloss = fromSql gloss
-                      , ctProtoForm = fromSql protoform
-                      , ctReflexes = map (getCognatePart . fromSql) reflexes
-                      }
-    where
-      getCognatePart refl = 
-          case refl of
-            Just refl' -> Just $ (!! read ind) $ concat $ map (Split.splitOn "-") $ words form
-                where [form, ind] = Split.splitOn ";;;" refl'
-            Nothing -> Nothing
-
--- Deprecated: cogsets table phased out. Fix.
-createReflexTable :: (IConnection conn) => conn -> [Integer] -> IO Integer
-createReflexTable conn langs = run conn sql []
-    where
-      sql = printf " CREATE TEMPORARY TABLE reflextable AS SELECT cogsets.cogsetid, gloss, form AS protoform, %s FROM cogsets %s"
-            (intercalate "," $ map (printf "form%d") langs)
-            (intercalate " " $ map (\l -> printf ("NATURAL LEFT OUTER JOIN " ++ 
-                                                 "(SELECT cogsetid, (form || ';;;' || morph_index) AS form%d " ++ 
-                                                 "FROM reflex_of NATURAL JOIN reflexes WHERE langid=%d) AS lang%d")
-                                    l l l) langs)
-
--- Deprecated: cogsets table phrase out. Fix.
-reflexRecords :: [Integer] -> IO RTRs
-reflexRecords langs = do
-  conn <- connectDB
-  createReflexTable conn langs
-  records <- quickQuery' conn "SELECT * FROM reflextable" [] >>= return . map (reflexRowToRecord langs)
-  disconnect conn
-  return $ RTRs records
--}
-
-{-
--- Deprecated: cogsets table phrase out. Fix.
-cogSetSQL = "SELECT langid, name, GROUP_CONCAT(form, ';;;') AS forms, " ++ 
-            "GROUP_CONCAT(gloss, ';;;') AS glosses, " ++
-            "GROUP_CONCAT(refid, ';;;') AS refids, " ++ 
-            "GROUP_CONCAT(morph_index, ';;;') AS morphinds " ++ 
-            "FROM langnames " ++ 
-            "LEFT NATURAL JOIN (SELECT langid, cogsetid, form, gloss, refid, morph_index FROM reflexes " ++
-            "NATURAL JOIN reflex_of WHERE cogsetid=?) GROUP BY langid"
--}
 
 convertDelimList :: SqlValue -> JSValue
 convertDelimList SqlNull = JSArray []
@@ -131,6 +67,7 @@ getCogSetJSON inputs = do
                          
     Nothing -> return $ showJSON "Error! No cogsetid given."
 
+{-
 cogsetSelect :: [(String, String)] -> JQSelect
 cogsetSelect params = jqSelect 
                       [ "langid", "name" ]
@@ -157,6 +94,7 @@ cogsetSelect params = jqSelect
                                        [] -- Order by
                                        SelectLimitNone
                                        []
+-}
 
 cogsetSelect' :: [(String, String)] -> JQSelect
 cogsetSelect' params = jqSelect 
@@ -194,41 +132,31 @@ cogsetSelect' params = jqSelect
                                     SelectLimitNone
                                     params
 
+
 reflexesSelect' :: [(String, String)] -> JQSelect
-reflexesSelect' params = defaultJQSelect 
-                         { selectFields = SelectFields [ SelectField "refid"
-                                                       , SelectField "form"
-                                                       , SelectField "gloss"
-                                                       , SelectField "langid"
-                                                       , SelectField "cogmorph" ]
-                         , selectSource = SelectSource "descendant_of"
-                         , selectJoins = SelectJoins [ JnUsing JnPlain "reflexes" ["langid"]
-                                                     , JnSelOn JnLeft reflexOf "refid" "ro_refid" ]
-                         , selectWhere = SelectWhere $ WhAnd [WhEqNum "plangid" plangid]
-                         , selectOrder = case (maybeSidx, maybeSord) of
-                                           (Just sidx, Just sord) -> SelectOrder [(sidx, sord)]
-                                           _ -> SelectOrderNone
-                         , selectLimit = case (maybePage, maybeRows) of
-                                           (Just page, Just rows) -> 
-                                               SelectLimit (startRecord (read rows) (read page)) (read rows)
-                                           _ -> SelectLimitNone
-                         }
+reflexesSelect' params = jqSelect' reflexes params
     where
-      plangid = read $ fromJust $ lookup "plangid" params :: Int
-      maybePage = lookup "page" params
-      maybeRows = lookup "rows" params
-      maybeSidx = lookup "sidx" params 
-      maybeSord = lookup "sord" params 
+      plangid = read $ fromJust $ lookup "plangid" params
+      strFields = ["form", "gloss", "langid"]
+      wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
+      reflexes = defaultJQSelect 
+                 { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss", "langid", "cogmorph" ]
+                 , selectSource = SelectSource "descendant_of"
+                 , selectJoins = SelectJoins [ JnUsing JnPlain "reflexes" ["langid"]
+                                             , JnSelOn JnLeft reflexOf "refid" "ro_refid" ]
+                 , selectWhere = SelectWhere $ WhAnd [WhEqNum "plangid" plangid]
+                 }
       reflexOf = defaultJQSelect
                  { selectFields = SelectFields [ SelectFieldAs "plangid" "ro_plangid"
                                                , SelectFieldAs "refid" "ro_refid"
                                                , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph" 
                                                ]
                  , selectSource = SelectSource "reflex_of"
-                 , selectWhere = SelectWhere $ WhEqNum "ro_plangid" plangid
+                 , selectWhere = SelectWhere $ WhAnd $ [WhEqNum "ro_plangid" plangid] ++ wheres
                  , selectGroup = SelectGroup ["refid"]
                  }
 
+{-                
 reflexesSelect :: [(String, String)] -> JQSelect
 reflexesSelect params = jqSelect 
                         [ "refid", "form", "gloss" ] 
@@ -252,6 +180,8 @@ reflexesSelect params = jqSelect
       relativize "langid" = "reflexes.langid"
       relativize x = x
 
+-}
+{-
 protoSelect :: [(String, String)] -> JQSelect
 protoSelect params = jqSelect 
                      ["refid", "form", "gloss"]
@@ -268,6 +198,21 @@ protoSelect params = jqSelect
       strFields = ["form", "gloss"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
 
+-}
+
+protoSelect' :: [(String, String)] -> JQSelect
+protoSelect' params = jqSelect' proto params
+    where
+      plangid = read $ fromMaybe "0" $ lookup "langid" params
+      strFields = ["form", "gloss"]
+      wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
+      proto = defaultJQSelect 
+              { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss" ]
+              , selectSource = SelectSource "reflexes"
+              , selectWhere = SelectWhere $ WhAnd 
+                              $ [WhEqNum "langid" plangid] ++ wheres
+              }
+
 -- Builds a hash-table (as a JSON object) from an SQL table given a
 -- table name, the field to use for the key, and the field to use as
 -- the value.
@@ -277,9 +222,11 @@ getJSONMap table key value wh = withDbConnection getJSONMap'
       getJSONMap' conn = quickQuery' conn sql [] >>= return . makeObj . map (\[k,v] -> (fromSql k, showJSON v))
       sql = printf "SELECT DISTINCT %s, %s FROM %s %s" key value table wh
 
+{-
 -- Returns data suitable for populating a JQGrid based on a JQGridQuery object.
 getJSONGrid :: JQGridQuery -> IO JSValue
 getJSONGrid query = withDbConnection (\conn -> jqGridResponse conn query)
+-}
 
 -- Perform the specified action with a DB connection. Queries must
 -- force strict evaluation; lazy queries will not return any values
@@ -308,10 +255,9 @@ cgiMain = do
              Just "plangnames" ->  \_ -> (getJSONMap "langnames JOIN descendant_of ON langnames.langid=descendant_of.plangid" 
                                                          "plangid" "name" "ORDER BY name")
              Just "cogset" -> getCogSetJSON
-             Just "cogsets" -> jqSelectResp conn $ protoSelect
+             Just "cogsets" -> jqSelectResp conn $ protoSelect'
              Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
-             Just _ -> jqSelectResp conn $ reflexesSelect'
-             Nothing -> jqSelectResp conn $ reflexesSelect'
+             _ -> jqSelectResp conn $ reflexesSelect'
           )
   liftIO $ disconnect conn
   output $ encodeString $ encode $ json

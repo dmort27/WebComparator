@@ -14,7 +14,9 @@ module Network.JQGrid ( JQGridQuery (..)
                       , JQSelect (..)
                       , defaultJQSelect
                       , jqSelect
+                      , jqSelect'
                       , jqSelectResp
+                      , jqSelectCount
                       , JQGridTableRow (..)
                       , JQGridResp (..)
                       , recordCount
@@ -22,7 +24,7 @@ module Network.JQGrid ( JQGridQuery (..)
                       , startRecord
                       , toJQGridTableRow
                       , jqGridQuery
-                      , jqGridResponse ) where
+                      ) where
 
 import System.Locale
 import System.Time
@@ -304,15 +306,35 @@ jqSelect fields specFields source joins wheres groupBys orderBys limit params = 
                   ) ++ orderBys
       wheres' = wheres ++ [WhLike f v | (f, v) <- params, f `elem` fields]
 
+jqSelect' :: JQSelect -> [(String, String)] -> JQSelect
+jqSelect' jqselect params = 
+    jqselect { selectOrder = case (maybeSidx, maybeSord) of
+                               (Just sidx, Just sord) -> SelectOrder [(sidx, sord)]
+                               _ -> SelectOrderNone
+             , selectLimit = SelectLimit (startRecord rows page) rows
+             }
+    where
+      page = read $ fromJust $ lookup "page" params
+      rows = read $ fromJust $ lookup "rows" params
+      maybeSidx = lookup "sidx" params 
+      maybeSord = lookup "sord" params 
+
+
+jqSelectCount :: JQSelect ->  JQSelect
+jqSelectCount jqselect = 
+    jqselect { selectFields = SelectFields [SelectFieldAs "COUNT(*)" "n"]
+             }
+
 jqSelectResp :: Connection -> ([(String,String)] -> JQSelect) -> [(String,String)] -> IO JSValue
 jqSelectResp conn select params = do
-  records <- recordCount conn source
+  records <- quickQuery' conn (show jqCount) [] >>= return . fromSql . head . head
   let totalPages = pageCount records rows
   let page' = if (page <= totalPages) then page else totalPages
   rows <- quickQuery' conn (show jqSelect) []
   return $ showJSON $ JQGridResp totalPages page' records (map (toJQGridTableRow fieldNames) rows) (show jqSelect)
       where
         jqSelect = select params
+        jqCount = jqSelectCount jqSelect
         SelectSource source = selectSource jqSelect
         SelectFields fields = selectFields jqSelect
         page = read $ fromJust $ lookup "page" params
@@ -321,36 +343,6 @@ jqSelectResp conn select params = do
             map (\x -> case x of
                          SelectField f -> f
                          SelectFieldAs _ f -> f) fields
-        
--- Implements basic communication between a JQGrid widget and an HDBC
--- database backend. Takes an HDBC database connection and a
--- JQGridQuery object and returns a response serialized as JSON
--- interpretable by the JQGrid widget.
-jqGridResponse :: (IConnection conn) => conn -> JQGridQuery -> IO JSValue
-jqGridResponse conn query = do
-  records <- recordCount conn (queryTable query)
-  let totalPages = pageCount records (queryLimit query)
-  let page' = if (queryPage query <= totalPages) 
-              then (queryPage query) 
-              else totalPages
-  rows <- quickQuery' conn sql []
-  return $ showJSON $ 
-         JQGridResp totalPages page' records 
-                        (map (toJQGridTableRow ((queryFields query) ++ querySpecFields query)) rows) ""
-      where
-        start = startRecord (queryLimit query) (queryPage query)
-        wheres' = map (\(k,v) -> printf "%s LIKE '%%%s%%'" k v) (queryWheres query)
-        whereClause = if (wheres' == []) 
-                      then "" 
-                      else " WHERE " ++ (intercalate " AND " wheres') ++ " "
-        sql = printf (querySQL query) -- "SELECT %s FROM %s %s ORDER BY %s %s LIMIT %d, %d" 
-              (intercalate "," $ queryFields query) -- Fields
-              (queryTable query) -- Table name
-              whereClause        -- Where clause
-              (querySidx query)  -- Sort index
-              (querySord query)  -- Sort order ("ASC" or "DESC")
-              start              -- offset
-              (queryLimit query) -- rows per page
 
 -- Samples for testing:
 
