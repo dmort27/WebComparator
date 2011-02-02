@@ -210,7 +210,7 @@ $(document).ready(
 
 	    var cogsets = $("#cogsets").jqGrid({
 		jsonReader : { repeatitems: false, id: "refid" },
-		url: cgiRoot + 'query.cgi?qtype=cogsets' + plangid,
+		url: cgiRoot + 'query.cgi?qtype=cogsets',
 		editurl: cgiRoot + 'edit.cgi',
 		editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } },
 		datatype: 'json',
