@@ -132,68 +132,117 @@ getCogSetJSON inputs = do
     Nothing -> return $ showJSON "Error! No cogsetid given."
 
 cogsetSelect :: [(String, String)] -> JQSelect
-cogsetSelect params = jqSelect (SelectSource "langnames")
+cogsetSelect params = jqSelect 
                       [ "langid", "name" ]
                       [ SelectFieldAs "GROUP_CONCAT(form, ';;;')" "forms"
                       , SelectFieldAs "GROUP_CONCAT(gloss, ';;;')" "glosses"
                       , SelectFieldAs "GROUP_CONCAT(refid, ';;;')" "refids"
                       , SelectFieldAs "GROUP_CONCAT(morph_index, ';;;')" "morphinds" ]
+                      (SelectSource "langnames")                      
                       [ JnSelUsing JnLeft reflexes ["langid"]]
                       [ WhTrue "display" ]
                       [ "langid" ]
                       [("langgrp","ASC"), ("name","ASC")] -- Order by
+                      SelectLimitNone
                       (params)
                           where
                             plangid = read $ fromJust $ lookup "plangid" params :: Int
-                            reflexes = jqSelect (SelectSource "reflexes")
+                            reflexes = jqSelect 
                                        ["langid", "prefid", "form", "gloss", "refid", "morph_index" ]
                                        []
+                                       (SelectSource "reflexes")
                                        [JnUsing JnPlain "reflex_of" ["refid"]]
                                        [WhEqNum "prefid" $ read $ fromJust $ lookup "prefid" params]
                                        []
                                        [] -- Order by
+                                       SelectLimitNone
                                        []
 
 cogsetSelect' :: [(String, String)] -> JQSelect
-cogsetSelect' params = jqSelect (SelectJQSelect langs)
+cogsetSelect' params = jqSelect 
                        [ "langid", "name" ]
                       [ SelectFieldAs "GROUP_CONCAT(form, ';;;')" "forms"
                       , SelectFieldAs "GROUP_CONCAT(gloss, ';;;')" "glosses"
                       , SelectFieldAs "GROUP_CONCAT(refid, ';;;')" "refids"
                       , SelectFieldAs "GROUP_CONCAT(morph_index, ';;;')" "morphinds" ]
+                      (SelectSelect langs)
                       [ JnSelUsing JnLeft reflexes ["langid"]]
                       []
                       ["langid"]
                       [("name", "ASC")]
+                      SelectLimitNone
                       (params)
                           where
-                            reflexes = jqSelect (SelectSource "reflexes")
+                            reflexes = jqSelect 
                                        ["langid", "prefid", "form", "gloss", "refid", "morph_index" ]
                                        []
+                                       (SelectSource "reflexes")
                                        [ JnUsing JnPlain "reflex_of" ["refid"] ]
                                        [ WhEqNum "prefid" $ read $ fromJust $ lookup "prefid" params ]
                                        []
                                        [] -- Order by
+                                       SelectLimitNone
                                        []
-                            langs = jqSelect (SelectSource "descendant_of")
+                            langs = jqSelect 
                                     ["langid", "name"]
                                     []
+                                    (SelectSource "descendant_of")
                                     [JnUsing JnPlain "langnames" ["langid"]]
                                     [WhEqNum "plangid" $ read $ fromJust $ lookup "plangid" params, WhTrue "display"]
                                     []
                                     []
+                                    SelectLimitNone
                                     params
 
+reflexesSelect' :: [(String, String)] -> JQSelect
+reflexesSelect' params = defaultJQSelect 
+                         { selectFields = SelectFields [ SelectField "refid"
+                                                       , SelectField "form"
+                                                       , SelectField "gloss"
+                                                       , SelectField "langid"
+                                                       , SelectField "cogmorph" ]
+                         , selectSource = SelectSource "descendant_of"
+                         , selectJoins = SelectJoins [ JnUsing JnPlain "reflexes" ["langid"]
+                                                     , JnSelOn JnLeft reflexOf "refid" "ro_refid" ]
+                         , selectWhere = SelectWhere $ WhAnd [WhEqNum "plangid" plangid]
+                         , selectOrder = case (maybeSidx, maybeSord) of
+                                           (Just sidx, Just sord) -> SelectOrder [(sidx, sord)]
+                                           _ -> SelectOrderNone
+                         , selectLimit = case (maybePage, maybeRows) of
+                                           (Just page, Just rows) -> 
+                                               SelectLimit (startRecord (read rows) (read page)) (read rows)
+                                           _ -> SelectLimitNone
+                         }
+    where
+      plangid = read $ fromJust $ lookup "plangid" params :: Int
+      maybePage = lookup "page" params
+      maybeRows = lookup "rows" params
+      maybeSidx = lookup "sidx" params 
+      maybeSord = lookup "sord" params 
+      reflexOf = defaultJQSelect
+                 { selectFields = SelectFields [ SelectFieldAs "plangid" "ro_plangid"
+                                               , SelectFieldAs "refid" "ro_refid"
+                                               , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph" 
+                                               ]
+                 , selectSource = SelectSource "reflex_of"
+                 , selectWhere = SelectWhere $ WhEqNum "ro_plangid" plangid
+                 , selectGroup = SelectGroup ["refid"]
+                 }
+
 reflexesSelect :: [(String, String)] -> JQSelect
-reflexesSelect params = jqSelect (SelectSource "reflexes")
+reflexesSelect params = jqSelect 
                         [ "refid", "form", "gloss" ] 
                         [ SelectFieldAs "reflexes.langid" "langid"
                         , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph"] 
+                        (SelectSource "reflexes")
                         [ JnUsing JnLeft "reflex_of" ["refid"]
                         , JnOn JnLeft "langnames" "langnames.langid" "reflexes.langid"] 
-                        ([WhTrue "display", WhEqNum "plangid" $ read $ fromJust $ lookup "plangid" params] ++ wheres)
+                        ([ WhTrue "display"
+                         , WhEqNum "plangid" $ read $ fromJust $ lookup "plangid" params] 
+                         ++ wheres)
                         ["refid"] 
                         [] -- Order by
+                        SelectLimitNone
                         params
     where
       strFields = ["form", "gloss"]
@@ -204,14 +253,16 @@ reflexesSelect params = jqSelect (SelectSource "reflexes")
       relativize x = x
 
 protoSelect :: [(String, String)] -> JQSelect
-protoSelect params = jqSelect (SelectSource "reflexes")
-              ["refid", "form", "gloss"]
-              []
-              []
-              ([WhEqNum "langid" plangid] ++ wheres)
-              []
-              [] -- Order by
-              params
+protoSelect params = jqSelect 
+                     ["refid", "form", "gloss"]
+                     []
+                     (SelectSource "reflexes")
+                     []
+                     ([WhEqNum "langid" plangid] ++ wheres)
+                     []
+                     [] -- Order by
+                     SelectLimitNone
+                     params
     where
       plangid = read $ fromMaybe "0" $ lookup "langid" params
       strFields = ["form", "gloss"]
@@ -258,9 +309,9 @@ cgiMain = do
                                                          "plangid" "name" "ORDER BY name")
              Just "cogset" -> getCogSetJSON
              Just "cogsets" -> jqSelectResp conn $ protoSelect
-             Just "reflexes" -> jqSelectResp conn $ reflexesSelect
-             Just _ -> jqSelectResp conn $ reflexesSelect
-             Nothing -> jqSelectResp conn $ reflexesSelect
+             Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
+             Just _ -> jqSelectResp conn $ reflexesSelect'
+             Nothing -> jqSelectResp conn $ reflexesSelect'
           )
   liftIO $ disconnect conn
   output $ encodeString $ encode $ json
