@@ -210,9 +210,9 @@ $(document).ready(
 
 	    var cogsets = $("#cogsets").jqGrid({
 		jsonReader : { repeatitems: false, id: "refid" },
-		url: cgiRoot + 'query.cgi?qtype=cogsets',
+		url: cgiRoot + 'query.cgi?qtype=cogsets&plangid=' + $("#plangid").val(),
 		editurl: cgiRoot + 'edit.cgi',
-		editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } },
+		//editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } },
 		datatype: 'json',
 		mtype: 'GET',
 		height: "100%",
@@ -265,7 +265,7 @@ $(document).ready(
 
 	    var reflexes = $("#reflexes").jqGrid({
 		jsonReader : { repeatitems: false, id: "refid" },
-		url: cgiRoot + 'query.cgi?qtype=reflexes',
+		url: cgiRoot + 'query.cgi?qtype=reflexes&plangid=' + $("#plangid").val(),
 		editurl: cgiRoot + 'edit.cgi',
 		data: { plangid: function() {return $("#plangid").val(); } },
 		editData: { plangid: function() {return $("#plangid").val(); } },
@@ -404,17 +404,15 @@ $(document).ready(
 		       var cogsets = initCogSets(plangid);
 		       cogsets.setGridHeight(winHeight * 0.80);
 		       var cogset = updateCogSet( $("body").data("prefid") );
+                       $.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
+		                  function (langnames) {
+                                      var reflexes = initReflexes(langnames);
+                                      reflexes.setGridHeight(winHeight * 0.80);
+                                  } );
+                       
 		   }
 		 );
-        // $("#cogset-table").height(winHeight * 0.80);
-	$.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
-		   function (langnames) {
-                       var reflexes = initReflexes(langnames);
-                       reflexes.setGridHeight(winHeight * 0.80);
-                       // authDialog.show();
-                       // authDialog.dialog("open");
-                   } );
-
+        
     });
 
 var objToSelectString = function(obj) {
