@@ -13,7 +13,7 @@ cp -r  html/js/i18n $CGI/webcomparator/js/
 cp  html/css/*.css $CGI/webcomparator/css/
 cp dist/build/query.cgi/query.cgi $CGIBIN
 cp dist/build/edit.cgi/edit.cgi $CGIBIN
-mkdir -p $DB
-chmod a+rwx $DB
-cp data/WebCompBorderlands.sqlite $DB
-chmod a+rw $DB/WebCompBorderlands.sqlite
+# mkdir -p $DB
+# chmod a+rwx $DB
+# cp data/WebCompBorderlands.sqlite $DB
+# chmod a+rw $DB/WebCompBorderlands.sqlite
