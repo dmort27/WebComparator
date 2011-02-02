@@ -144,7 +144,7 @@ reflexesSelect' params = jqSelect' reflexes params
                  , selectSource = SelectSource "descendant_of"
                  , selectJoins = SelectJoins [ JnUsing JnPlain "reflexes" ["langid"]
                                              , JnSelOn JnLeft reflexOf "refid" "ro_refid" ]
-                 , selectWhere = SelectWhere $ WhAnd [WhEqNum "plangid" plangid]
+                 , selectWhere = SelectWhere $ WhAnd $ [WhEqNum "plangid" plangid] ++ wheres
                  }
       reflexOf = defaultJQSelect
                  { selectFields = SelectFields [ SelectFieldAs "plangid" "ro_plangid"
@@ -152,53 +152,9 @@ reflexesSelect' params = jqSelect' reflexes params
                                                , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph" 
                                                ]
                  , selectSource = SelectSource "reflex_of"
-                 , selectWhere = SelectWhere $ WhAnd $ [WhEqNum "ro_plangid" plangid] ++ wheres
+                 , selectWhere = SelectWhere $ WhAnd [WhEqNum "ro_plangid" plangid] 
                  , selectGroup = SelectGroup ["refid"]
                  }
-
-{-                
-reflexesSelect :: [(String, String)] -> JQSelect
-reflexesSelect params = jqSelect 
-                        [ "refid", "form", "gloss" ] 
-                        [ SelectFieldAs "reflexes.langid" "langid"
-                        , SelectFieldAs "GROUP_CONCAT(morph_index || \":\" || prefid)" "cogmorph"] 
-                        (SelectSource "reflexes")
-                        [ JnUsing JnLeft "reflex_of" ["refid"]
-                        , JnOn JnLeft "langnames" "langnames.langid" "reflexes.langid"] 
-                        ([ WhTrue "display"
-                         , WhEqNum "plangid" $ read $ fromJust $ lookup "plangid" params] 
-                         ++ wheres)
-                        ["refid"] 
-                        [] -- Order by
-                        SelectLimitNone
-                        params
-    where
-      strFields = ["form", "gloss"]
-      numFields = ["refid", "langid"]
-      wheres = [WhLike (relativize f) v | (f, v) <- params, f `elem` strFields] ++
-               [WhEqNum (relativize f) (read v) | (f, v) <- params, f `elem` numFields]
-      relativize "langid" = "reflexes.langid"
-      relativize x = x
-
--}
-{-
-protoSelect :: [(String, String)] -> JQSelect
-protoSelect params = jqSelect 
-                     ["refid", "form", "gloss"]
-                     []
-                     (SelectSource "reflexes")
-                     []
-                     ([WhEqNum "langid" plangid] ++ wheres)
-                     []
-                     [] -- Order by
-                     SelectLimitNone
-                     params
-    where
-      plangid = read $ fromMaybe "0" $ lookup "langid" params
-      strFields = ["form", "gloss"]
-      wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
-
--}
 
 protoSelect' :: [(String, String)] -> JQSelect
 protoSelect' params = jqSelect' proto params
@@ -221,12 +177,6 @@ getJSONMap table key value wh = withDbConnection getJSONMap'
     where
       getJSONMap' conn = quickQuery' conn sql [] >>= return . makeObj . map (\[k,v] -> (fromSql k, showJSON v))
       sql = printf "SELECT DISTINCT %s, %s FROM %s %s" key value table wh
-
-{-
--- Returns data suitable for populating a JQGrid based on a JQGridQuery object.
-getJSONGrid :: JQGridQuery -> IO JSValue
-getJSONGrid query = withDbConnection (\conn -> jqGridResponse conn query)
--}
 
 -- Perform the specified action with a DB connection. Queries must
 -- force strict evaluation; lazy queries will not return any values
