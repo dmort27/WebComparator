@@ -12,6 +12,7 @@ module Network.JQGrid ( JQGridQuery (..)
                       , SelectGroup (..)
                       , SelectLimit (..)
                       , JQSelect (..)
+                      , defaultJQSelect
                       , jqSelect
                       , jqSelectResp
                       , JQGridTableRow (..)
@@ -50,10 +51,10 @@ instance Show SelectField where
     show (SelectField f) = f
     show (SelectFieldAs f f') = f ++ " AS " ++ f'
 
-data SelectSource = SelectSource String | SelectJQSelect JQSelect
+data SelectSource = SelectSource String | SelectSelect JQSelect
 instance Show SelectSource where
     show (SelectSource table) = "FROM " ++ table
-    show (SelectJQSelect jqSelect) = "FROM (" ++ (show jqSelect) ++ ")"
+    show (SelectSelect jqSelect) = "FROM (" ++ (show jqSelect) ++ ")"
 
 data JnType = JnPlain | JnLeft | JnLeftOuter | JnInner | JnCross
 instance Show JnType where
@@ -284,28 +285,24 @@ jqGridQuery table fields specFields sql inputs = JQGridQuery
 -- strings), a list of other fields (as SelectField), a list of joins
 -- (as JnTable), and an association list of parameters from the HTTP
 -- request, returns a JQSelect.
-jqSelect :: SelectSource  -> [String]  -> [SelectField] -> [SelectJoin] -> [SelectCond] -> [String] -> [(String,String)] -> [(String,String)] -> JQSelect
-jqSelect source fields specFields joins wheres groupBys orderBys inputs = JQSelect
+jqSelect :: [String]  -> [SelectField] -> SelectSource  -> [SelectJoin] -> [SelectCond] -> [String] -> [(String,String)] -> SelectLimit -> [(String,String)] -> JQSelect
+jqSelect fields specFields source joins wheres groupBys orderBys limit params = JQSelect
     { selectFields = SelectFields $ (map SelectField fields) ++ specFields
     , selectSource = source
     , selectJoins = SelectJoins joins
     , selectWhere = SelectWhere $ WhAnd wheres'
     , selectGroup = SelectGroup groupBys
     , selectOrder = SelectOrder orderBys'
-    , selectLimit = case (maybePage, maybeRows) of
-                      (Just page, Just rows) -> SelectLimit (startRecord (read rows) (read page)) (read rows)
-                      _ -> SelectLimitNone
+    , selectLimit = limit
     }
     where
-      maybePage = lookup "page" inputs
-      maybeRows = lookup "rows" inputs
-      maybeSidx = lookup "sidx" inputs 
-      maybeSord = lookup "sord" inputs 
+      maybeSidx = lookup "sidx" params 
+      maybeSord = lookup "sord" params 
       orderBys' = (case (maybeSidx, maybeSord) of
                      (Just sidx, Just sord) -> [(sidx, sord)]
                      _ -> []
                   ) ++ orderBys
-      wheres' = wheres ++ [WhLike f v | (f, v) <- inputs, f `elem` fields]
+      wheres' = wheres ++ [WhLike f v | (f, v) <- params, f `elem` fields]
 
 jqSelectResp :: Connection -> ([(String,String)] -> JQSelect) -> [(String,String)] -> IO JSValue
 jqSelectResp conn select params = do
