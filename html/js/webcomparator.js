@@ -210,7 +210,7 @@ $(document).ready(
 
 	    var cogsets = $("#cogsets").jqGrid({
 		jsonReader : { repeatitems: false, id: "refid" },
-		url: cgiRoot + 'query.cgi?qtype=cogsets&plangid=' + $("#plangid").val(),
+		url: cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid,
 		editurl: cgiRoot + 'edit.cgi',
 		//editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } },
 		datatype: 'json',
@@ -379,7 +379,6 @@ $(document).ready(
 
 	    $("#plangid").change(function() {
 		var plangid = $("#plangid").val();
-		console.log("plangid=" + plangid);
 		var cogsetUrl = cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid;
 		$("#cogsets").jqGrid().setGridParam({
 		    url : cogsetUrl, 
@@ -388,12 +387,12 @@ $(document).ready(
 		var reflexesUrl = cgiRoot + 'query.cgi?qtype=reflexes&plangid=' + plangid;
 		$("#reflexes").jqGrid().setGridParam({
 		    url : reflexesUrl, 
-		    editData: {langid: plangid}
+		    editData: {plangid: plangid}
 		}).trigger("reloadGrid");
 		updateCogSet(0);
 	    });
 
-	    $("#plangid").val("18");
+	    $("#plangid").val("17");
 	    return $("#plangid").val(); // default plangid
 	};
 
@@ -401,13 +400,14 @@ $(document).ready(
 	$.getJSON( cgiRoot + "query.cgi?qtype=plangnames",
 		   function(plangnames) {
 		       var plangid = protoLangSelector(plangnames);
-		       var cogsets = initCogSets(plangid);
-		       cogsets.setGridHeight(winHeight * 0.80);
-		       var cogset = updateCogSet( $("body").data("prefid") );
+		       console.log("$('#plangid').val()=" + $('#plangid').val())
                        $.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
 		                  function (langnames) {
+				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
                                       reflexes.setGridHeight(winHeight * 0.80);
+				      var cogsets = initCogSets(plangid);
+				      cogsets.setGridHeight(winHeight * 0.80);
                                   } );
                        
 		   }
