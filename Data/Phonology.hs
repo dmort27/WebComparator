@@ -43,7 +43,7 @@ knownOnsets :: (Eq a) => [[a]] -> [[a]] -> [[a]]
 knownOnsets vowels = reverse . sortByLength . nub . map (fstOnset vowels)
 
 knownCodas :: (Eq a) => [[a]] -> [[a]] -> [[a]]
-knownCodas vowels = reverse . sortByLength . nub . map (lstCoda vowels)
+knownCodas vowels = sortByLength . nub . map (lstCoda vowels)
 
 splitOnset :: [String] -> String -> (String, String)
 splitOnset [] wd = ("", wd)
