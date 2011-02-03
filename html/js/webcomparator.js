@@ -236,7 +236,6 @@ $(document).ready(
 		onSelectRow: function(refid) { 
 		    updateCogSet(refid);
 		    $("body").data("prefid", refid);
-		    console.log($("body").data());
 		}
 	    }).navGrid('#cogsets-pager', {view: false, search: false}, 
 		       {editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } }}, 
@@ -293,10 +292,10 @@ $(document).ready(
 		sortname: 'refid',
 		sortorder: 'ASC',
 		viewrecords: true,
+		multiselect: true,
 		caption: 'Reflexes',
 		onSelectRow: function (refid, status) { 
 		    $("body").data("refid", refid);
-		    console.log($("body").data());
 		},
 		gridComplete: function () {
 		    $(".tagged").click(function(obj) {
@@ -330,7 +329,6 @@ $(document).ready(
 			 refid: $("body").data("refid"),
 			 plangid: $("#plangid").val(),
 			 morphind: "0"};
-	    console.log(data);
 	    $.ajax({ url: cgiRoot + "edit.cgi", 
 		     data: data,
 		     type: "POST",
@@ -400,7 +398,6 @@ $(document).ready(
 	$.getJSON( cgiRoot + "query.cgi?qtype=plangnames",
 		   function(plangnames) {
 		       var plangid = protoLangSelector(plangnames);
-		       console.log("$('#plangid').val()=" + $('#plangid').val())
                        $.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
 		                  function (langnames) {
 				      var cogset = updateCogSet( $("body").data("prefid") );
