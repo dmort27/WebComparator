@@ -187,7 +187,8 @@ $(document).ready(
 		$("#cogset-table thead").addClass("ui-state-default ui-jqgrid-hdiv");
 		$("#cogset-table thead tr").addClass("ui-jqgrid-labels");
 		$("#cogset-table thead th").addClass("ui-jqgrid-labels ui-state-default ui-th-column ui-th-ltr");
-
+		$("#cogset-add").button().css("width", "100%");
+		
                 // Open the morph picker dialog when a form is double-clicked.
 		$("div.ref").dblclick(function() {
 		    var data = $(this).data();
