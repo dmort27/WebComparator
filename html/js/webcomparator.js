@@ -405,9 +405,10 @@ $(document).ready(
 		                  function (langnames) {
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
-                                      reflexes.setGridHeight(winHeight * 0.80);
 				      var cogsets = initCogSets(plangid);
 				      cogsets.setGridHeight(winHeight * 0.80);
+                                      reflexes.setGridHeight(winHeight * 0.80);
+				      $("#cogset-box").css("max-height", (winHeight * 0.80 + 50) + "px");
                                   } );
                        
 		   }

@@ -32,7 +32,6 @@
 #cogset-box { 
     overflow-x: hidden;
     overflow-y: auto;
-    max-height: 700px;
 }
 
 #cogset-table { 
