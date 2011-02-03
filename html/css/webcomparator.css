@@ -30,7 +30,9 @@
 }
 
 #cogset-box { 
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 700px;
 }
 
 #cogset-table { 
@@ -41,6 +43,10 @@
     border-collapse: collapse;
     border-style: solid;
     border-width: 0px;
+}
+
+#cogset-table th {
+position: relative;
 }
 
 #cogset-table td.langname {
