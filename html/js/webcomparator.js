@@ -147,8 +147,6 @@ $(document).ready(
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
 	    if (!protoForm && !protoGloss) {
-		protoForm = ""
-		protoGloss = ""
 	    }
 	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
 	    $("#cogset-protoform").empty().append("*" + protoForm);
@@ -335,11 +333,16 @@ $(document).ready(
 	// Set keybindings here.
 
 	$(document).bind('keydown', 'Ctrl+a', function() {
+	    var refid = $("body").data("refid")
 	    var data = { oper:"addtoset",
 			 prefid: $("body").data("prefid"), 
-			 refid: $("body").data("refid"),
+			 refid: refid,
+			 langid: getLangId($("#reflexes").getCell(refid, "langid")),
+			 form: $("#reflexes").getCell(refid, "form"),
 			 plangid: $("#plangid").val(),
-			 morphind: "0"};
+			 protoform: $("#cogset-protoform").data("form"),
+			 protogloss: $("#cogset-protoform").data("gloss")
+		       };
 	    $.ajax({ url: cgiRoot + "edit.cgi", 
 		     data: data,
 		     type: "POST",
@@ -411,6 +414,7 @@ $(document).ready(
 		       var plangid = protoLangSelector(plangnames);
                        $.getJSON( cgiRoot + "query.cgi?qtype=langnames", 
 		                  function (langnames) {
+				      $("body").data("langnames", langnames);
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
 				      var cogsets = initCogSets(plangid);
@@ -423,6 +427,14 @@ $(document).ready(
 		 );
         
     });
+
+var getLangId = function(s) { 
+    var langid;
+    $.each($("body").data("langnames"), function(k, v) {
+	if (v == s) { langid = k; }
+    });
+    return langid;
+};
 
 var objToSelectString = function(obj) {
     if (obj) {
