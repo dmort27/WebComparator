@@ -134,8 +134,6 @@ $(document).ready(
 	// Refreshes the display of the current cognate set.
 	var updateCogSet = function(prefid) {
 
-	    console.log("prefid=" + prefid);
-
 	    var plangid = $("#plangid").val();
 	    
             // Set the value of prefid in two useful locations.
