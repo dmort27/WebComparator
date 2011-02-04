@@ -37,14 +37,16 @@ instance Show Syl where
     show (Syl ons rhy) = ons ++ (show rhy)
 instance PhonClass Syl where
     showPhonClass (Syl ons rhy) =
-        (substituteAll (classToMap consClasses) ons) ++ (showPhonClass rhy)
+        (substituteAll (classToMap consClasses) (stripCharsForComp ons)) 
+        ++ (showPhonClass rhy)
 
 data Rhy = Rhy String String
 instance Show Rhy where
     show (Rhy nuc cod) = nuc ++ cod
 instance PhonClass Rhy where
     showPhonClass (Rhy nuc cod) = 
-        (substituteAll (classToMap vowelClasses) nuc) ++ (substituteAll (classToMap consClasses) cod)
+        (substituteAll (classToMap vowelClasses) (stripCharsForComp nuc)) 
+        ++ (substituteAll (classToMap consClasses) (stripCharsForComp cod))
 
 splitOnSpace :: String -> [String]
 splitOnSpace = splitOn " "
@@ -110,6 +112,28 @@ parseWord onsets codas = Word . reverse . parseWord' . reverse
                         (syl, []) -> [syl]
                         (syl, wd'') -> (syl : parseWord' wd'')
 
+stripCharsForComp :: [Char] -> [Char]
+stripCharsForComp = stripChars (combiningDiacritics ++ modifierLetters)
+
+substituteAll :: [(String, String)] -> String -> String
+substituteAll subs [] = ""
+substituteAll subs xs = case substitute subs xs of
+                          (hd, tl) -> hd ++ (substituteAll subs tl)
+
+substitute :: [(String,String)] -> String -> (String, String)
+substitute [] (x:xs) = ([x], xs)
+substitute ((s,lab):subs) form
+               | s `isPrefixOf` form = (lab, fromJust $ stripPrefix s form)
+               | otherwise = substitute subs form
+
+distBetweenSyls :: Syl -> Syl -> Int
+distBetweenSyls a b = dist (showPhonClass a) (showPhonClass b)
+
+bestMatch :: Syl -> [Syl] -> Int
+bestMatch s syls = fst 
+                   $ minimumBy (\a b -> compare (snd a) (snd b)) 
+                   $ zipWith (\i syl -> (i, distBetweenSyls s syl)) [0..] syls
+
 classToMap :: [(String, [String])] -> [(String, String)]
 classToMap = sortBy (\a b -> compare (length $ fst a) (length $ fst b)) 
              . concatMap (\(lab, xs) -> [(x, lab) | x <- xs])
@@ -133,27 +157,6 @@ vowelClasses = [ ("A", words "ə ɤ ʌ æ ɐ a ɑ ɒ ɘ ɞ ɶ ɜ")
                , ("I", words "i ɨ ɪ e ɛ y")
                , ("U", words "ʉ ɯ u ʏ ʊ ø ɵ o ɔ w")
                ]
-
-stripCharsForComp = stripChars (combiningDiacritics ++ modifierLetters)
-
-substituteAll :: [(String, String)] -> String -> String
-substituteAll subs [] = ""
-substituteAll subs xs = case substitute subs xs of
-                          (hd, tl) -> hd ++ (substituteAll subs tl)
-
-substitute :: [(String,String)] -> String -> (String, String)
-substitute [] (x:xs) = ([x], xs)
-substitute ((s,lab):subs) form
-               | s `isPrefixOf` form = (lab, fromJust $ stripPrefix s form)
-               | otherwise = substitute subs form
-
-distBetweenSyls :: Syl -> Syl -> Int
-distBetweenSyls a b = dist (showPhonClass a) (showPhonClass b)
-
-bestMatch :: Syl -> [Syl] -> Int
-bestMatch s syls = fst 
-                   $ minimumBy (\a b -> compare (snd a) (snd b)) 
-                   $ zipWith (\i syl -> (i, distBetweenSyls s syl)) [0..] syls
 
 dist :: Eq a => [a] -> [a] -> Int
 dist a b 
