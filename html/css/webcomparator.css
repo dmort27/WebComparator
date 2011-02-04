@@ -64,6 +64,19 @@ position: relative;
     height: 20px;
 }
 
+#cogset-info {
+    padding: 3px;
+}
+
+#cogset-protoform, #cogset-protogloss {
+    font-size: 1.5em;
+    width: 100px;
+}
+
+#cogset-protoform {
+    font-weight: bold;
+}
+
 #morph-picker {
     font-size: 2em;
     color: gray;

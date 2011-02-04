@@ -134,6 +134,8 @@ $(document).ready(
 	// Refreshes the display of the current cognate set.
 	var updateCogSet = function(prefid) {
 
+	    console.log("prefid=" + prefid);
+
 	    var plangid = $("#plangid").val();
 	    
             // Set the value of prefid in two useful locations.
@@ -143,6 +145,17 @@ $(document).ready(
             // URL for getting cogset JSON.
             var url = cgiRoot + "query.cgi?qtype=cogset&prefid=" + prefid + "&plangid=" + plangid;
             
+	    var protoForm = $("#cogsets").getCell(prefid, "form");
+	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
+
+	    if (!protoForm && !protoGloss) {
+		protoForm = ""
+		protoGloss = ""
+	    }
+	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
+	    $("#cogset-protoform").empty().append("*" + protoForm);
+	    $("#cogset-protogloss").empty().append("‘" + protoGloss + "’");
+
             // Callback which does most of the actual work of displaying cognet set and setting up events on it.
 	    var updateCogSetP = function(data) {
 		$("#cogset-tbody").empty();
@@ -205,7 +218,6 @@ $(document).ready(
 	    
 	};
 
-
         // Create the cogsets table (which lists the protoforms and glosses).
 	var initCogSets = function(plangid) {
 
@@ -234,9 +246,9 @@ $(document).ready(
 		sortorder: 'ASC',
 		viewrecords: true,
 		caption: 'Proto-Forms',
-		onSelectRow: function(refid) { 
-		    updateCogSet(refid);
-		    $("body").data("prefid", refid);
+		onSelectRow: function(prefid) { 
+		    updateCogSet(prefid);
+		    $("body").data("prefid", prefid);
 		}
 	    }).navGrid('#cogsets-pager', {view: false, search: false}, 
 		       {editData: {table: 'cogsets', langid: function() {return $("#plangid").val(); } }}, 
