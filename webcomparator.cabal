@@ -10,12 +10,8 @@ Cabal-Version:       >= 1.2
 Build-type:	     Simple
 
 Library
-  Exposed-Modules:     Network.JQGrid
+  Exposed-Modules:     Network.JQGrid, Data.Phonology
   Build-Depends:       base >= 4.0, old-time, old-locale, HDBC, HDBC-sqlite3, json
-
-Library
-  Exposed-Modules:     Data.Phonology
-  Build-Depends:       base >= 4.0, split
 
 Executable query.cgi
   Main-is:             Query.hs
