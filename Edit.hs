@@ -111,7 +111,7 @@ actionAddToSet inputs conn = do
         updateSql = "UPDATE reflexes SET form=? WHERE refid=?"
         langid = read $ fromJust $ lookup "langid" inputs
         refid = read $ fromJust $ lookup "refid" inputs
-        form = fromJust $ lookup "form" inputs
+        form = filter (`notElem` "-") $ fromJust $ lookup "form" inputs
         plangid = read $ fromJust $ lookup "plangid" inputs
         prefid = read $ fromJust $ lookup "prefid" inputs
         protoForm = fromJust $ lookup "protoform" inputs

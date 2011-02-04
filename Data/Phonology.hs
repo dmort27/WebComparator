@@ -14,6 +14,7 @@ module Data.Phonology ( ipaVowels
                       , parseWord
                       , consClasses
                       , bestMatch
+                      , PhonClass (..)
                       ) where
 
 import Data.List (intercalate, takeWhile, nub, sortBy, isPrefixOf, stripPrefix, intersect, minimumBy)
@@ -136,7 +137,7 @@ bestMatch s syls = fst
                    $ zipWith (\i syl -> (i, distBetweenSyls s syl)) [0..] syls
 
 classToMap :: [(String, [String])] -> [(String, String)]
-classToMap = sortBy (\a b -> compare (length $ fst a) (length $ fst b)) 
+classToMap = reverse . sortBy (\a b -> compare (length $ fst a) (length $ fst b)) 
              . concatMap (\(lab, xs) -> [(x, lab) | x <- xs])
 
 consClasses = [ ("P", words "p b ɓ")
@@ -145,18 +146,19 @@ consClasses = [ ("P", words "p b ɓ")
               , ("M", words "m hm mh")
               , ("N", words "n hn nh ɳ ɳh hɳ")
               , ("G", words "ŋ hŋ ŋh")
-              , ("S", words "s z ʃ ʒ ʂ ʐ ç ʑ")
+              , ("S", words "s z ʃ ʒ ʂ ʐ ç ʝ ʑ ɕ")
               , ("F", words "ɸ β θ ð f v x ɣ ħ ʕ")
               , ("L", words "l ɬ ɭ lh hl")
               , ("R", words "r ɾ ɽ ɹ ɺ hr rh")
               , ("W", words "w hw wh")
               , ("Y", words "j hj y hy yh")
-              , ("0", words "ʔ h ɦ")
+              , ("", words "ː ʔ h ɦ")
               ]
 
 vowelClasses = [ ("A", words "ə ɤ ʌ æ ɐ a ɑ ɒ ɘ ɞ ɶ ɜ")
-               , ("I", words "i ɨ ɪ e ɛ y")
+               , ("I", words "i ɨ ɪ e ɛ y j")
                , ("U", words "ʉ ɯ u ʏ ʊ ø ɵ o ɔ w")
+               , ("", words "ː")
                ]
 
 dist :: Eq a => [a] -> [a] -> Int
