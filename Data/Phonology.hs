@@ -13,6 +13,7 @@ module Data.Phonology ( ipaVowels
                       , parseSyllable
                       , parseWord
                       , consClasses
+                      , bestMatch
                       ) where
 
 import Data.List (intercalate, takeWhile, nub, sortBy, isPrefixOf, stripPrefix, intersect, minimumBy)

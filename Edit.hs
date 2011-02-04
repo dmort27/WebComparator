@@ -2,6 +2,7 @@ module Main where
 
 import Network.CGI
 import Network.JQGrid
+import Data.Phonology
 
 import Text.JSON
 import Text.Printf
@@ -16,6 +17,7 @@ import Data.List (intercalate)
 import Codec.Binary.UTF8.String (encodeString, decodeString)
 import qualified Data.ByteString.UTF8
 
+import PhonData
 import Site
 
 data TableInfo = TableInfo 
@@ -86,15 +88,40 @@ actionDelete inputs table conn =
     
 actionAddToSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
 actionAddToSet inputs conn = do
+  onsets <- elementTable conn 0 (fromIntegral langid)
+  codas <- elementTable conn 1 (fromIntegral langid)
+  let parser = parseWord onsets codas
+
+  ponsets <- elementTable conn 0 (fromIntegral plangid)
+  pcodas <- elementTable conn 1 (fromIntegral plangid)
+  let pparser = parseWord ponsets pcodas
+
+  let params = map SqlInteger [ refid
+                              , prefid
+                              , plangid
+                              , fromIntegral $ getBestMorphInd parser pparser protoForm form
+                              ]
+  withTransaction conn $ \c -> run c updateSql [ toSql $ show $ parser form
+                                               , toSql refid 
+                                               ]
   withTransaction conn $ \c -> run c sql params
   return JSNull
       where
         sql = "INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)"
-        plangid = read $ fromJust $ lookup "plangid" inputs
+        updateSql = "UPDATE reflexes SET form=? WHERE refid=?"
+        langid = read $ fromJust $ lookup "langid" inputs
         refid = read $ fromJust $ lookup "refid" inputs
+        form = fromJust $ lookup "form" inputs
+        plangid = read $ fromJust $ lookup "plangid" inputs
         prefid = read $ fromJust $ lookup "prefid" inputs
-        morphInd = read $ fromMaybe "0" $ lookup "morphind" inputs
-        params = map SqlInteger [refid, prefid, plangid, morphInd]
+        protoForm = fromJust $ lookup "protoform" inputs
+        protoGloss = fromJust $ lookup "protogloss" inputs        
+
+getBestMorphInd :: (String -> Word) -> (String -> Word) -> String -> String -> Int
+getBestMorphInd parser pparser protoform form = bestMatch protoform' form'
+    where
+      Word (protoform':_) = pparser protoform
+      Word form' = parser form
 
 actionRemoveFromSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
 actionRemoveFromSet inputs conn = withTransaction conn $ \c -> run c sql params >> return JSNull
