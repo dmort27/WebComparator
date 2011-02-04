@@ -8,7 +8,7 @@ data Word = Word [Syl]
 instance Show Word where
     show (Word xs) = intercalate "-" $ map show xs
 
-data Syl = Syl String Rhy
+data Syl = Syl String Rhy | WdBnd
 instance Show Syl where
     show (Syl ons rhy) = ons ++ (show rhy)
 
@@ -31,29 +31,55 @@ strippedWords :: [String] -> [String]
 strippedWords = map (stripChars combiningDiacritics)
 
 fstOnset :: (Eq a) => [[a]] -> [a] -> [a]
-fstOnset vowels = takeWhile (\x -> [x] `notElem` vowels)
+fstOnset vowels = reverse . takeWhile (\x -> [x] `notElem` vowels)
 
 lstCoda :: (Eq a) => [[a]] -> [a] -> [a]
-lstCoda vowels = reverse . fstOnset vowels . reverse
+lstCoda vowels = fstOnset vowels . reverse
 
 sortByLength :: (Eq a) => [[a]] -> [[a]]
 sortByLength = sortBy (\a b -> compare (length a) (length b))
 
 knownOnsets :: (Eq a) => [[a]] -> [[a]] -> [[a]]
-knownOnsets vowels = reverse . sortByLength . nub . map (fstOnset vowels)
+knownOnsets vowels = sortByLength . nub . map (fstOnset vowels)
 
 knownCodas :: (Eq a) => [[a]] -> [[a]] -> [[a]]
 knownCodas vowels = sortByLength . nub . map (lstCoda vowels)
 
-splitOnset :: [String] -> String -> (String, String)
-splitOnset [] wd = ("", wd)
-splitOnset (o:os) wd | o `isPrefixOf` wd = (o, fromJust $ stripPrefix o wd)
-                     | otherwise = splitOnset os wd
+splitPrefix :: [String] -> String -> (String, String)
+splitPrefix [] wd = ("", wd)
+splitPrefix (x:xs) wd 
+    | x `isPrefixOf` wd = (x, fromJust $ stripPrefix x wd)
+    | otherwise         = splitPrefix xs wd
 
-startsWithOnset :: [String] -> String -> Bool
-startsWithOnset onsets wd = case splitOnset onsets wd of
-                              ("", _) -> False
-                              (_ , _) -> True
+hasPrefixIn :: [String] -> String -> Bool
+hasPrefixIn onsets wd = any (\x -> x `isPrefixOf` wd) onsets
+
+splitSoSuffix :: (String -> Bool) -> String -> (String, String)
+splitSoSuffix f = splitSoSuffix' ""
+    where
+      splitSoSuffix' :: String -> String -> (String, String)
+      splitSoSuffix' acc (x:xs)
+          | f (x:xs) = (acc, (x:xs))
+          | otherwise = splitSoSuffix' (acc ++ [x]) xs
+      splitSoSuffix' acc [] = (acc, [])
+                            
+
+parseSyllable :: [String] -> [String] -> String -> (Syl, String)
+parseSyllable onsets codas wd = (Syl (reverse ons) (Rhy (reverse nuc) (reverse cod)), afterOns)
+    where
+      (cod, afterCod) = splitPrefix codas wd
+      (nuc, afterNuc) = splitSoSuffix (hasPrefixIn onsets) afterCod
+      (ons, afterOns) = splitPrefix onsets afterNuc
+
+parseWord :: [String] -> [String] -> String -> Word
+parseWord onsets codas = Word . reverse . parseWord' . reverse
+    where
+      parseWord' :: String -> [Syl]
+      parseWord' wd' = case parseSyllable onsets codas wd' of
+                        (syl, []) -> [syl]
+                        (syl, wd'') -> (syl : parseWord' wd'')
+
+{-
 
 splitRhyme :: [String] -> [String] -> String -> (String, String)
 splitRhyme onsets vowels wd = splitRhyme' ("", wd)
@@ -65,6 +91,8 @@ splitRhyme onsets vowels wd = splitRhyme' ("", wd)
                                   (o, xs') -> if [head xs'] `elem` vowels then (rhy, xs) else (rhy ++ xs, "")
                             | xs == [] = (rhy, xs)
                             | otherwise = splitRhyme' (rhy ++ [head xs], tail xs)
+
+-}
 
 --parseWord1 :: onsets 
 
