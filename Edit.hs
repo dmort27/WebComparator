@@ -12,7 +12,8 @@ import qualified Data.List.Split as Split
 import Database.HDBC
 
 import Data.Maybe (fromMaybe, fromJust)
-import Data.List (intercalate)
+import Data.List (intercalate, intersect)
+import Data.List.Split (splitOn)
 
 import Codec.Binary.UTF8.String (encodeString, decodeString)
 import qualified Data.ByteString.UTF8
@@ -117,10 +118,51 @@ actionAddToSet inputs conn = do
         protoForm = fromJust $ lookup "protoform" inputs
         protoGloss = fromJust $ lookup "protogloss" inputs        
 
+actionAddGroupToSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
+actionAddGroupToSet inputs conn = do
+  ponsets <- elementTable conn 0 (fromIntegral plangid)
+  pcodas <- elementTable conn 1 (fromIntegral plangid)
+  let pparser = parseWord ponsets pcodas
+  mapM_ (addItem pparser) refids
+
+  return JSNull
+
+      where
+        insertSql = "INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)"
+        reflexSql = "SELECT langid, form FROM reflexes WHERE refid=?"
+        updateSql = "UPDATE reflexes SET form=? WHERE refid=?"
+        refids = (map read) $ splitOn "," $ fromJust $ lookup "refids" inputs
+        plangid = read $ fromJust $ lookup "plangid" inputs
+        prefid = read $ fromJust $ lookup "prefid" inputs
+        protoForm = fromJust $ lookup "protoform" inputs
+        protoGloss = fromJust $ lookup "protogloss" inputs
+
+        addItem pparser refid = do
+          [[langid, form]] <- quickQuery' conn reflexSql [toSql refid]
+          onsets <- elementTable conn 0 (fromSql langid)
+          codas <- elementTable conn 1 (fromSql langid)
+          let parser = parseWord onsets codas
+          let form = filter (`notElem` "-") $ fromJust $ lookup "form" inputs
+          let params = map SqlInteger [ refid
+                                      , prefid
+                                      , plangid
+                                      , fromIntegral $ getBestMorphInd parser pparser protoForm form
+                                      ]
+
+          withTransaction conn $ \c -> run c updateSql [ toSql $ show $ parser form
+                                                       , toSql refid 
+                                                       ]
+          withTransaction conn $ \c -> run c insertSql params
+          return ()
+          
+
 getBestMorphInd :: (String -> Word) -> (String -> Word) -> String -> String -> Int
 getBestMorphInd parser pparser protoform form = bestMatch protoform' form'
     where
-      Word (protoform':_) = pparser protoform
+      Word (protoform':_) = pparser 
+                            $ head 
+                            $ filter (\x -> (x `intersect` (concat ipaVowels)) /= []) 
+                            $ splitOn "-" protoform
       Word form' = parser form
 
 actionRemoveFromSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
