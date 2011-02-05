@@ -333,7 +333,7 @@ $(document).ready(
 	// Set keybindings here.
 
 	$(document).bind('keydown', 'Ctrl+a', function() {
-	    var refid = $("body").data("refid")
+	    var refid = $("body").data("refid");
 	    var data = { oper:"addtoset",
 			 prefid: $("body").data("prefid"), 
 			 refid: refid,
@@ -351,7 +351,6 @@ $(document).ready(
 	});
 
 	$(document).bind('keydown', 'Ctrl+g', function() {
-	    console.log("Ctrl-g pressed.")
 	    var refids = $("#reflexes").jqGrid("getGridParam", "selarrrow").join(",");
 	    var data = { oper:"addgrouptoset",
 			 prefid: $("body").data("prefid"), 
@@ -360,10 +359,13 @@ $(document).ready(
 			 protoform: $("#cogset-protoform").data("form"),
 			 protogloss: $("#cogset-protoform").data("gloss")
 		       };
-	    $.ajax({ url: cgiRoot + "edit.cgi", 
+	    $.ajax({ url: cgiRoot + "edit.cgi",
 		     data: data,
 		     type: "POST",
-		     success: function() { updateCogSet( $("body").data("prefid") ); }
+		     success: function() {
+                         $("#reflexes").resetSelection();
+                         updateCogSet( $("body").data("prefid") );
+                     }
 		   });
 	});
 
@@ -393,7 +395,7 @@ $(document).ready(
                              type: "POST",
                              async: false,
                              success: function() {
-                                 $(this).dialog("close");
+                                                     $(this).dialog("close");
                              }
                            });
                     

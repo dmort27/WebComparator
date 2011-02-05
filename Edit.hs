@@ -1,5 +1,6 @@
 module Main where
 
+import Debug.Trace (trace)
 import Network.CGI
 import Network.JQGrid
 import Data.Phonology
@@ -122,8 +123,8 @@ actionAddGroupToSet inputs conn = do
   ponsets <- elementTable conn 0 (fromIntegral plangid)
   pcodas <- elementTable conn 1 (fromIntegral plangid)
   let pparser = parseWord ponsets pcodas
-  mapM (addItem pparser) refids
-  return JSNull
+  results <- mapM (addItem pparser) refids
+  return $ showJSON results
 
       where
         insertSql = "INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)"
@@ -132,21 +133,24 @@ actionAddGroupToSet inputs conn = do
         refids = (map read) $ splitOn "," $ fromJust $ lookup "refids" inputs
         plangid = read $ fromJust $ lookup "plangid" inputs
         prefid = read $ fromJust $ lookup "prefid" inputs
-        protoForm = fromJust $ lookup "protoform" inputs
+        protoForm = filter (`notElem` "()- ◦")$ fromJust $ lookup "protoform" inputs
 
+        addItem :: (String -> Word) -> Integer -> IO Integer
         addItem pparser refid = do
           [[langid, form]] <- quickQuery' conn reflexSql [toSql refid]
           onsets <- elementTable conn 0 (fromSql langid)
           codas <- elementTable conn 1 (fromSql langid)
           let parser = parseWord onsets codas
-          let form = filter (`notElem` "-") form
+          let form' = filter (`notElem` "()- ◦") $ fromSql form
           let params = map SqlInteger [ refid
                                       , prefid
                                       , plangid
-                                      , fromIntegral $ getBestMorphInd parser pparser protoForm form
+                                      , fromIntegral $ getBestMorphInd parser pparser protoForm form'
                                       ]
-          run conn updateSql [ toSql $ show $ parser form, toSql refid ]
-          run conn insertSql params
+          result <- handleSql (\_ -> return (-1)) (run conn insertSql params)
+          run conn updateSql [ toSql $ show $ parser form', toSql refid ]
+          commit conn
+          return result
           
 getBestMorphInd :: (String -> Word) -> (String -> Word) -> String -> String -> Int
 getBestMorphInd parser pparser protoform form = bestMatch protoform' form'
@@ -177,7 +181,7 @@ actionSetMorphInd inputs conn =  withTransaction conn $ \c -> run c sql params >
 withDbConnection action = handleSqlError $ do
       conn <- connectDB
       result <- action conn
-      disconnect conn
+      --disconnect conn
       return result
 
 mapPair :: (a -> b) -> (a, a) -> (b, b)
