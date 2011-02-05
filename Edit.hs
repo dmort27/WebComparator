@@ -116,15 +116,13 @@ actionAddToSet inputs conn = do
         plangid = read $ fromJust $ lookup "plangid" inputs
         prefid = read $ fromJust $ lookup "prefid" inputs
         protoForm = fromJust $ lookup "protoform" inputs
-        protoGloss = fromJust $ lookup "protogloss" inputs        
 
 actionAddGroupToSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
 actionAddGroupToSet inputs conn = do
   ponsets <- elementTable conn 0 (fromIntegral plangid)
   pcodas <- elementTable conn 1 (fromIntegral plangid)
   let pparser = parseWord ponsets pcodas
-  mapM_ (addItem pparser) refids
-
+  mapM (addItem pparser) refids
   return JSNull
 
       where
@@ -135,27 +133,21 @@ actionAddGroupToSet inputs conn = do
         plangid = read $ fromJust $ lookup "plangid" inputs
         prefid = read $ fromJust $ lookup "prefid" inputs
         protoForm = fromJust $ lookup "protoform" inputs
-        protoGloss = fromJust $ lookup "protogloss" inputs
 
         addItem pparser refid = do
           [[langid, form]] <- quickQuery' conn reflexSql [toSql refid]
           onsets <- elementTable conn 0 (fromSql langid)
           codas <- elementTable conn 1 (fromSql langid)
           let parser = parseWord onsets codas
-          let form = filter (`notElem` "-") $ fromJust $ lookup "form" inputs
+          let form = filter (`notElem` "-") form
           let params = map SqlInteger [ refid
                                       , prefid
                                       , plangid
                                       , fromIntegral $ getBestMorphInd parser pparser protoForm form
                                       ]
-
-          withTransaction conn $ \c -> run c updateSql [ toSql $ show $ parser form
-                                                       , toSql refid 
-                                                       ]
-          withTransaction conn $ \c -> run c insertSql params
-          return ()
+          run conn updateSql [ toSql $ show $ parser form, toSql refid ]
+          run conn insertSql params
           
-
 getBestMorphInd :: (String -> Word) -> (String -> Word) -> String -> String -> Int
 getBestMorphInd parser pparser protoform form = bestMatch protoform' form'
     where
@@ -205,6 +197,7 @@ cgiMain = do
               (Just "edit", Just table') -> withDbConnection (actionUpdate inputs table')
               (Just "del", Just table') -> withDbConnection (actionDelete inputs table')
               (Just "addtoset", Nothing) -> withDbConnection (actionAddToSet inputs)
+              (Just "addgrouptoset", Nothing) -> withDbConnection (actionAddGroupToSet inputs)
               (Just "setmorphind", Nothing) -> withDbConnection (actionSetMorphInd inputs)
               (Just "removefromset", Nothing) -> withDbConnection (actionRemoveFromSet inputs)
               (_, _) -> return $ showJSON "No operation executed."

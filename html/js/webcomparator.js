@@ -350,6 +350,23 @@ $(document).ready(
 		   });
 	});
 
+	$(document).bind('keydown', 'Ctrl+g', function() {
+	    console.log("Ctrl-g pressed.")
+	    var refids = $("#reflexes").jqGrid("getGridParam", "selarrrow").join(",");
+	    var data = { oper:"addgrouptoset",
+			 prefid: $("body").data("prefid"), 
+			 refids: refids,
+			 plangid: $("#plangid").val(),
+			 protoform: $("#cogset-protoform").data("form"),
+			 protogloss: $("#cogset-protoform").data("gloss")
+		       };
+	    $.ajax({ url: cgiRoot + "edit.cgi", 
+		     data: data,
+		     type: "POST",
+		     success: function() { updateCogSet( $("body").data("prefid") ); }
+		   });
+	});
+
         var winHeight = $(window).height();
         var winWidth = $(window).width();
 
