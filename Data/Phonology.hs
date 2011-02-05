@@ -155,9 +155,9 @@ consClasses = [ ("P", words "p b ɓ")
               , ("", words "ː ʔ h ɦ")
               ]
 
-vowelClasses = [ ("A", words "ə ɤ ʌ æ ɐ a ɑ ɒ ɘ ɞ ɶ ɜ")
-               , ("I", words "i ɨ ɪ e ɛ y j")
-               , ("U", words "ʉ ɯ u ʏ ʊ ø ɵ o ɔ w")
+vowelClasses = [ ("A", words "ə ɤ ʌ æ ɐ a ɑ ɒ ɘ ɞ ɶ ɜ əə ɤɤ ʌʌ ææ ɐ aa ɑɑ ɒɒ ɘɘ ɞɞ ɶɶ ɜɜ")
+               , ("I", words "i ɨ ɪ e ɛ y j ii ɨɨ ɪɪ ee ɛɛ yy")
+               , ("U", words "ʉ ɯ u ʏ ʊ ø ɵ o ɔ w ʉʉ ɯɯ uu ʏʏ ʊʊ øø ɵɵ oo ɔɔ")
                , ("", words "ː")
                ]
 
