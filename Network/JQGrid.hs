@@ -92,7 +92,7 @@ data SelectCond = WhEqNum String Int | WhEqStr String String | WhLike String Str
 instance Show SelectCond where
     show (WhEqNum field value) = printf "%s=%d" field value
     show (WhEqStr field value) = printf "%s='%s'" field $ makeSafe value
-    show (WhLike field value) = printf "%s LIKE '%%%s%%'" field $ makeSafe value
+    show (WhLike field value) = printf "%s LIKE '%s'" field $ makeSafe value
     show (WhNull field) = printf "%s IS NULL" field
     show (WhNotNull field) = printf "%s IS NOT NULL" field
     show (WhTrue field) = printf "%s" field

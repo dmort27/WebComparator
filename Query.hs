@@ -67,34 +67,6 @@ getCogSetJSON inputs = do
                          
     Nothing -> return $ showJSON "Error! No cogsetid given."
 
-{-
-cogsetSelect :: [(String, String)] -> JQSelect
-cogsetSelect params = jqSelect 
-                      [ "langid", "name" ]
-                      [ SelectFieldAs "GROUP_CONCAT(form, ';;;')" "forms"
-                      , SelectFieldAs "GROUP_CONCAT(gloss, ';;;')" "glosses"
-                      , SelectFieldAs "GROUP_CONCAT(refid, ';;;')" "refids"
-                      , SelectFieldAs "GROUP_CONCAT(morph_index, ';;;')" "morphinds" ]
-                      (SelectSource "langnames")                      
-                      [ JnSelUsing JnLeft reflexes ["langid"]]
-                      [ WhTrue "display" ]
-                      [ "langid" ]
-                      [("langgrp","ASC"), ("name","ASC")] -- Order by
-                      SelectLimitNone
-                      (params)
-                          where
-                            plangid = read $ fromJust $ lookup "plangid" params :: Int
-                            reflexes = jqSelect 
-                                       ["langid", "prefid", "form", "gloss", "refid", "morph_index" ]
-                                       []
-                                       (SelectSource "reflexes")
-                                       [JnUsing JnPlain "reflex_of" ["refid"]]
-                                       [WhEqNum "prefid" $ read $ fromJust $ lookup "prefid" params]
-                                       []
-                                       [] -- Order by
-                                       SelectLimitNone
-                                       []
--}
 
 cogsetSelect' :: [(String, String)] -> JQSelect
 cogsetSelect' params = jqSelect 
@@ -104,10 +76,10 @@ cogsetSelect' params = jqSelect
                       , SelectFieldAs "GROUP_CONCAT(refid, ';;;')" "refids"
                       , SelectFieldAs "GROUP_CONCAT(morph_index, ';;;')" "morphinds" ]
                       (SelectSelect langs)
-                      [ JnSelUsing JnLeft reflexes ["langid"]]
+                      [ JnSelUsing JnPlain reflexes ["langid"]]
                       []
                       ["langid"]
-                      [("name", "ASC")]
+                      [("langgrp","ASC"), ("name", "ASC")]
                       SelectLimitNone
                       (params)
                           where
@@ -122,7 +94,7 @@ cogsetSelect' params = jqSelect
                                        SelectLimitNone
                                        []
                             langs = jqSelect 
-                                    ["langid", "name"]
+                                    ["langid", "name", "langgrp"]
                                     []
                                     (SelectSource "descendant_of")
                                     [JnUsing JnPlain "langnames" ["langid"]]
