@@ -5,7 +5,7 @@ $(document).ready(
 
         /* GLOBAL SITE SETTINGS */
 
-        var cgiRoot = '/cgi-bin/';
+        var cgiRoot = '';
         
         // Formatters and unformatters
 	var protoformFormat = function(s) { return ('*' + s); };
@@ -26,6 +26,25 @@ $(document).ready(
 	};
 	var reflexUnformat = function(s) { return s; };
 
+        var removeReflexesFromCogset = function() {
+            var rem = [];
+            $(".selected").each( function(i) {
+                var data = $(this).data();                
+                rem.push({refid: data.refid, morphind: data.morphind});
+                $.ajax({
+                    url: cgiRoot + "edit.cgi",
+                    data: {oper: "removefromset",
+                           prefid: data.prefid,
+                           refid: data.refid
+                          },
+                    type: "POST",
+                    async: false
+                });
+            });
+            updateCogSet( data.prefid );
+            $("body").data("lastremoved", rem);
+        };
+        
         var addReflexesToCogset = function() {
 	    var refids = $("#reflexes").jqGrid("getGridParam", "selarrrow").join(",");
             if (refids) {
@@ -47,6 +66,10 @@ $(document).ready(
             }
         };
 
+        var pasteReflexestoCogset = function() {
+            console.log("Cannot yet paste.");
+        };
+        
         /* MORPH-PICKER */        
         
         // Instantiate the morph-picker dialog
@@ -204,6 +227,9 @@ $(document).ready(
 				.addClass("ref")
 				.data(formData);
 			    $("#cogset-tbody tr:last td:last").append(thisForm);
+                            thisForm.click( function() {
+                                thisForm.toggleClass("selected");
+                            });
 			});
 		    }
 		});
@@ -217,7 +243,9 @@ $(document).ready(
 		$("#cogset-table thead").addClass("ui-state-default ui-jqgrid-hdiv");
 		$("#cogset-table thead tr").addClass("ui-jqgrid-labels");
 		$("#cogset-table thead th").addClass("ui-jqgrid-labels ui-state-default ui-th-column ui-th-ltr");
-		
+
+                setDimensions();
+                
                 // Open the morph picker dialog when a form is double-clicked.
 		$("div.ref").dblclick(function() {
 		    var data = $(this).data();
@@ -372,11 +400,6 @@ $(document).ready(
 
             
 	    $(document).bind('keydown', 'Ctrl+a', function() { addReflexesToCogset(); });
-
-        var winHeight = $(window).height();
-        var winWidth = $(window).width();
-
-        $("#controls").height(winHeight * 0.9).width(winWidth * 0.9);
         
         var authDialog = $("#auth-dialog").dialog({
             autoOpen: false,
@@ -431,6 +454,26 @@ $(document).ready(
 	        return $("#plangid").val(); // default plangid
 	    };
 
+        var setDimensions = function() {
+            var winHeight = $(window).height();
+            var winWidth = $(window).width();
+            
+            $("#controls").height(winHeight * 0.9).width(winWidth * 0.9);
+	    $("#cogsets").setGridHeight(winHeight * 0.80);
+            $("#reflexes").setGridHeight(winHeight * 0.80);
+
+            var availableWidth = winWidth - 60;
+            $("#cogsets").setGridWidth(availableWidth * 0.2);
+            $("#reflexes").setGridWidth(availableWidth * 0.4);
+
+            $("#cogset-box")
+                .css("max-height", (winHeight * 0.80 + 50) + "px")
+                .width(availableWidth * 0.4);
+            $("#cogset-table").width(availableWidth * 0.4);
+            $("#cogset-table td.langname").css("max-width", "100px");
+            $("#cogset-table td.reflex").width((availableWidth * 0.4) - 100);
+        };
+        
         // Create the three major user-interface components.
 	$.getJSON( cgiRoot + "query.cgi?qtype=plangnames",
 		   function(plangnames) {
@@ -441,12 +484,13 @@ $(document).ready(
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
 				      var cogsets = initCogSets(plangid);
-                                      $("#cogset-add").button().css("width", "100%");
+                                      $("#cogset-add").button().css("width", "30%");
+                                      $("#cogset-remove").button().css("width", "30%");
+                                      $("#cogset-paste").button().css("width", "30%");
                                       $("#cogset-add").click( function(){ addReflexesToCogset(); });
-
-				      cogsets.setGridHeight(winHeight * 0.80);
-                                      reflexes.setGridHeight(winHeight * 0.80);
-				          $("#cogset-box").css("max-height", (winHeight * 0.80 + 50) + "px");
+                                      $("#cogset-remove").click( function(){ removeReflexesFromCogset(); });
+                                      $("#cogset-paste").click( function(){ pasteReflexesToCogset(); });
+                                      setDimensions();
                                   } );
                        
 		   }
