@@ -10,12 +10,12 @@
 
 .ui-widget { 
     font-family: Charis SIL Compact, Charis SIL, Doulos SIL, DejaVu Serif, Lucida Grande, DejaVu Sans, Times New Roman, serif; 
-    font-size: 0.7em;
+    font-size: 0.8em;
 }
 
 .ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button { 
     font-family: Charis SIL Compact, Charis SIL, Doulos SIL, DejaVu Serif, Lucida Grande, DejaVu Sans, Times New Roman, serif;
-    font-size: 0.7em;
+    font-size: 0.8em;
 }
 
 #cogset-box, #cogsets-box, #reflexes-box, #morph-picker {
@@ -35,7 +35,6 @@
 }
 
 #cogset-table { 
-    width: 300px;
     overflow: auto;
     table-layout: fixed;
     white-space: normal;
@@ -69,12 +68,16 @@ position: relative;
 }
 
 #cogset-protoform, #cogset-protogloss {
-    font-size: 1.5em;
+    font-size: 1.2em;
     width: 100px;
 }
 
 #cogset-protoform {
     font-weight: bold;
+}
+
+.selected {
+    background-color: yellow;
 }
 
 #morph-picker {
