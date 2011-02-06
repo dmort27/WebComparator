@@ -8,8 +8,6 @@ import Data.Phonology
 import Text.JSON
 import Text.Printf
 
-import qualified Data.List.Split as Split
-
 import Database.HDBC
 
 import Data.Maybe (fromMaybe, fromJust)
@@ -152,6 +150,19 @@ actionAddGroupToSet inputs conn = do
           commit conn
           return result
           
+
+actionPasteGroupToSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
+actionPasteGroupToSet inputs conn = do
+  proc <- prepare conn "INSERT INTO reflex_of (refid, morph_index, prefid, plangid) VALUES (?, ?, ?, ?)"
+  mapM (\ps -> execute proc ps >> commit conn) pss >>= return . showJSON
+      where
+        prefid = nToSql $ read $ fromJust $ lookup "prefid" inputs
+        plangid = nToSql $ read $ fromJust $ lookup "plangid" inputs
+        sqlIntegersFromInput x = map (nToSql . read) $ splitOn "," $ fromJust $ lookup x inputs
+        refids = sqlIntegersFromInput "refids"
+        morphinds = sqlIntegersFromInput "morphinds"
+        pss = [[r, m, prefid, plangid] | (r, m) <- zip refids morphinds]
+
 getBestMorphInd :: (String -> Word) -> (String -> Word) -> String -> String -> Int
 getBestMorphInd parser pparser protoform form = bestMatch protoform' form'
     where
@@ -168,6 +179,18 @@ actionRemoveFromSet inputs conn = withTransaction conn $ \c -> run c sql params 
         refid = read $ fromJust $ lookup "refid" inputs
         prefid = read $ fromJust $ lookup "prefid" inputs
         params = map SqlInteger [refid, prefid]
+
+actionRemoveGroupFromSet :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
+actionRemoveGroupFromSet inputs conn = do
+  proc <- prepare conn "DELETE FROM reflex_of WHERE refid=? AND morph_index=? AND prefid=?"
+  mapM (removeFromSet proc) pss >>= return . showJSON
+    where
+      removeFromSet proc' ps = execute proc' ps >> commit conn
+      prefid = nToSql $ read $ fromJust $ lookup "prefid" inputs
+      sqlIntegersFromInput x = map (nToSql . read) $ splitOn "," $ fromJust $ lookup x inputs
+      refids = sqlIntegersFromInput "refids"
+      morphinds = sqlIntegersFromInput "morphinds"
+      pss = [[r, m, prefid] | (r, m) <- zip refids morphinds]
 
 actionSetMorphInd :: (IConnection conn) => [(String, String)] -> conn -> IO JSValue
 actionSetMorphInd inputs conn =  withTransaction conn $ \c -> run c sql params >> return JSNull
@@ -202,8 +225,10 @@ cgiMain = do
               (Just "del", Just table') -> withDbConnection (actionDelete inputs table')
               (Just "addtoset", Nothing) -> withDbConnection (actionAddToSet inputs)
               (Just "addgrouptoset", Nothing) -> withDbConnection (actionAddGroupToSet inputs)
+              (Just "pastegrouptoset", Nothing) -> withDbConnection (actionPasteGroupToSet inputs)
               (Just "setmorphind", Nothing) -> withDbConnection (actionSetMorphInd inputs)
               (Just "removefromset", Nothing) -> withDbConnection (actionRemoveFromSet inputs)
+              (Just "removegroupfromset", Nothing) -> withDbConnection (actionRemoveGroupFromSet inputs)
               (_, _) -> return $ showJSON "No operation executed."
             
 main :: IO ()

@@ -5,7 +5,7 @@ $(document).ready(
 
         /* GLOBAL SITE SETTINGS */
 
-        var cgiRoot = '';
+        var cgiRoot = '/cgi-bin/';
         
         // Formatters and unformatters
 	var protoformFormat = function(s) { return ('*' + s); };
@@ -28,21 +28,30 @@ $(document).ready(
 
         var removeReflexesFromCogset = function() {
             var rem = [];
+            var refids = [];
+            var prefid = $("body").data("prefid");
+            var morphinds = [];
             $(".selected").each( function(i) {
                 var data = $(this).data();                
-                rem.push({refid: data.refid, morphind: data.morphind});
-                $.ajax({
-                    url: cgiRoot + "edit.cgi",
-                    data: {oper: "removefromset",
-                           prefid: data.prefid,
-                           refid: data.refid
-                          },
-                    type: "POST",
-                    async: false
-                });
+                rem.push( { refid: data.refid,
+                            morphind: data.morphind } );
+                refids.push(data.refid);
+                morphinds.push(data.morphind);
             });
-            updateCogSet( data.prefid );
-            $("body").data("lastremoved", rem);
+            $.ajax({
+                url: cgiRoot + "edit.cgi",
+                data: {oper: "removegroupfromset",
+                       prefid: prefid,
+                       refids: refids.join(","),
+                       morphinds: morphinds.join(",")
+                      },
+                type: "POST",
+                success : function () {
+                    updateCogSet( $("body").data("prefid") );
+                    $("body").data("lastremoved", rem);
+                    
+                }
+            });
         };
         
         var addReflexesToCogset = function() {
@@ -66,8 +75,27 @@ $(document).ready(
             }
         };
 
-        var pasteReflexestoCogset = function() {
-            console.log("Cannot yet paste.");
+        var pasteReflexesToCogset = function() {
+            var refids = [];
+            var morphinds = [];
+            $.each($("body").data("lastremoved"), function(k, v) {
+                refids.push(v.refid);
+                morphinds.push(v.morphind);
+            });
+            var data = { oper:"pastegrouptoset",
+                         prefid: $("#cogset-box").data("prefid"),
+                         plangid: $("#plangid").val(),
+                         refids: refids.join(","),
+                         morphinds: morphinds.join(",")
+                       };
+            $.ajax({ url: cgiRoot + "edit.cgi",
+		     data: data,
+		     type: "POST",
+		     success: function() {
+                         $("#reflexes").resetSelection();
+                         updateCogSet( $("body").data("prefid") );
+                     }
+            });
         };
         
         /* MORPH-PICKER */        
@@ -229,6 +257,7 @@ $(document).ready(
 			    $("#cogset-tbody tr:last td:last").append(thisForm);
                             thisForm.click( function() {
                                 thisForm.toggleClass("selected");
+                                thisForm.toggleClass("ui-state-highlight");
                             });
 			});
 		    }
@@ -463,15 +492,15 @@ $(document).ready(
             $("#reflexes").setGridHeight(winHeight * 0.80);
 
             var availableWidth = winWidth - 60;
-            $("#cogsets").setGridWidth(availableWidth * 0.2);
+            $("#cogsets").setGridWidth(availableWidth * 0.3);
             $("#reflexes").setGridWidth(availableWidth * 0.4);
 
             $("#cogset-box")
                 .css("max-height", (winHeight * 0.80 + 50) + "px")
-                .width(availableWidth * 0.4);
-            $("#cogset-table").width(availableWidth * 0.4);
-            $("#cogset-table td.langname").css("max-width", "100px");
-            $("#cogset-table td.reflex").width((availableWidth * 0.4) - 100);
+                .width(availableWidth * 0.3);
+            $("#cogset-table").width(availableWidth * 0.3);
+            $("#cogset-table td.langname").css("max-width", "150px");
+            $("#cogset-table td.reflex").width((availableWidth * 0.3) - 150);
         };
         
         // Create the three major user-interface components.
@@ -484,9 +513,9 @@ $(document).ready(
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
 				      var cogsets = initCogSets(plangid);
-                                      $("#cogset-add").button().css("width", "30%");
-                                      $("#cogset-remove").button().css("width", "30%");
-                                      $("#cogset-paste").button().css("width", "30%");
+                                      $("#cogset-add").button().css("width", "32%");
+                                      $("#cogset-remove").button().css("width", "32%");
+                                      $("#cogset-paste").button().css("width", "32%");
                                       $("#cogset-add").click( function(){ addReflexesToCogset(); });
                                       $("#cogset-remove").click( function(){ removeReflexesFromCogset(); });
                                       $("#cogset-paste").click( function(){ pasteReflexesToCogset(); });
@@ -495,7 +524,11 @@ $(document).ready(
                        
 		   }
 		 );
-        
+
+        $(window).resize( function() {
+            console.log("Window resized.");
+            setDimensions();
+        });
     });
 
 var getLangId = function(s) { 
