@@ -26,7 +26,28 @@ $(document).ready(
 	};
 	var reflexUnformat = function(s) { return s; };
 
-        /* MORPH-PICKER */
+        var addReflexesToCogset = function() {
+	    var refids = $("#reflexes").jqGrid("getGridParam", "selarrrow").join(",");
+            if (refids) {
+	        var data = { oper:"addgrouptoset",
+			     prefid: $("body").data("prefid"), 
+			     refids: refids,
+			     plangid: $("#plangid").val(),
+			     protoform: $("#cogset-protoform").data("form"),
+			     protogloss: $("#cogset-protoform").data("gloss")
+		           };
+	        $.ajax({ url: cgiRoot + "edit.cgi",
+		         data: data,
+		         type: "POST",
+		         success: function() {
+                             $("#reflexes").resetSelection();
+                             updateCogSet( $("body").data("prefid") );
+                         }
+		       });
+            }
+        };
+
+        /* MORPH-PICKER */        
         
         // Instantiate the morph-picker dialog
 	var morphDialog =
@@ -78,7 +99,7 @@ $(document).ready(
 	        }
 	    });
 
-        // Display the morphs in the morph picker dialog.
+            // Display the morphs in the morph picker dialog.
 	var showMorphs = function(form, morphind) {
 
 	    var morphs = form.replace(/ /g, ' -').split('-');
@@ -104,7 +125,7 @@ $(document).ready(
 	    }).dblclick(function() {
                 reparseReflex();
             });
-	};
+	    };
 
         // Allow the user to re-divide a form into morphs.
 	var reparseReflex = function() {
@@ -129,7 +150,7 @@ $(document).ready(
 		    
 		};
 	    });
-	};
+	    };
         
 	// Refreshes the display of the current cognate set.
 	var updateCogSet = function(prefid) {
@@ -142,7 +163,7 @@ $(document).ready(
             
             // URL for getting cogset JSON.
             var url = cgiRoot + "query.cgi?qtype=cogset&prefid=" + prefid + "&plangid=" + plangid;
-            
+                
 	    var protoForm = $("#cogsets").getCell(prefid, "form");
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
@@ -196,7 +217,6 @@ $(document).ready(
 		$("#cogset-table thead").addClass("ui-state-default ui-jqgrid-hdiv");
 		$("#cogset-table thead tr").addClass("ui-jqgrid-labels");
 		$("#cogset-table thead th").addClass("ui-jqgrid-labels ui-state-default ui-th-column ui-th-ltr");
-		$("#cogset-add").button().css("width", "100%");
 		
                 // Open the morph picker dialog when a form is double-clicked.
 		$("div.ref").dblclick(function() {
@@ -214,7 +234,7 @@ $(document).ready(
 	    
 	};
 
-        // Create the cogsets table (which lists the protoforms and glosses).
+            // Create the cogsets table (which lists the protoforms and glosses).
 	var initCogSets = function(plangid) {
 
 	    var cogsets = $("#cogsets").jqGrid({
@@ -263,13 +283,13 @@ $(document).ready(
 	var initReflexes = function(langnames) {
 	    
 	    var langFormat = function(s) { return langnames[s]; };
-	    var langUnformat = function(s) { 
-		$.each(langnames, function(k, v) {
-		    var langid;
-		    if (v == s) { langid = k; }
-		    return langid;
-		});
-	    };
+	        var langUnformat = function(s) { 
+		    $.each(langnames, function(k, v) {
+		            var langid;
+		        if (v == s) { langid = k; }
+		        return langid;
+		    });
+	        };
 
 	    var reflexes = $("#reflexes").jqGrid({
 		jsonReader : { repeatitems: false, id: "refid" },
@@ -304,7 +324,7 @@ $(document).ready(
 		multiselect: true,
 		caption: 'Reflexes',
 		onSelectRow: function (refid, status) { 
-		    $("body").data("refid", refid);
+		        $("body").data("refid", refid);
 		},
 		gridComplete: function () {
 		    $(".tagged").click(function(obj) {
@@ -332,42 +352,26 @@ $(document).ready(
 
 	// Set keybindings here.
 
-	$(document).bind('keydown', 'Ctrl+a', function() {
-	    var refid = $("body").data("refid");
-	    var data = { oper:"addtoset",
-			 prefid: $("body").data("prefid"), 
-			 refid: refid,
-			 langid: getLangId($("#reflexes").getCell(refid, "langid")),
-			 form: $("#reflexes").getCell(refid, "form"),
-			 plangid: $("#plangid").val(),
-			 protoform: $("#cogset-protoform").data("form"),
-			 protogloss: $("#cogset-protoform").data("gloss")
-		       };
-	    $.ajax({ url: cgiRoot + "edit.cgi", 
-		     data: data,
-		     type: "POST",
-		     success: function() { updateCogSet( $("body").data("prefid") ); }
-		   });
-	});
+        // 	$(document).bind('keydown', 'Ctrl+a', function() {
+        // 	    var refid = $("body").data("refid");
+        // 	    var data = { oper:"addtoset",
+        // 			 prefid: $("body").data("prefid"), 
+        // 			 refid: refid,
+        // 			 langid: getLangId($("#reflexes").getCell(refid, "langid")),
+        // 			 form: $("#reflexes").getCell(refid, "form"),
+        // 			 plangid: $("#plangid").val(),
+        // 			 protoform: $("#cogset-protoform").data("form"),
+        // 			 protogloss: $("#cogset-protoform").data("gloss")
+        // 		       };
+        // 	    $.ajax({ url: cgiRoot + "edit.cgi", 
+        // 		     data: data,
+            // 		     type: "POST",
+        // 		     success: function() { updateCogSet( $("body").data("prefid") ); }
+        // 		   });
+        // 	});
 
-	$(document).bind('keydown', 'Ctrl+g', function() {
-	    var refids = $("#reflexes").jqGrid("getGridParam", "selarrrow").join(",");
-	    var data = { oper:"addgrouptoset",
-			 prefid: $("body").data("prefid"), 
-			 refids: refids,
-			 plangid: $("#plangid").val(),
-			 protoform: $("#cogset-protoform").data("form"),
-			 protogloss: $("#cogset-protoform").data("gloss")
-		       };
-	    $.ajax({ url: cgiRoot + "edit.cgi",
-		     data: data,
-		     type: "POST",
-		     success: function() {
-                         $("#reflexes").resetSelection();
-                         updateCogSet( $("body").data("prefid") );
-                     }
-		   });
-	});
+            
+	    $(document).bind('keydown', 'Ctrl+a', function() { addReflexesToCogset(); });
 
         var winHeight = $(window).height();
         var winWidth = $(window).width();
@@ -379,7 +383,7 @@ $(document).ready(
             closeOnEscape: false,
             modal: true,
             overlay: {background: "black", opacity: 1},
-            title: "Login",
+                title: "Login",
             buttons: {
                 "Ok" : function() {
                     var username = $("#username").val();
@@ -395,7 +399,7 @@ $(document).ready(
                              type: "POST",
                              async: false,
                              success: function() {
-                                                     $(this).dialog("close");
+                                 $(this).dialog("close");
                              }
                            });
                     
@@ -403,29 +407,29 @@ $(document).ready(
             }
         });
         
-	var protoLangSelector = function(plangnames) {
-	    $.each(plangnames, function(k, v) {
-		$("#plangid").append("<option value='" + k + "'>" + v + "</option>");
-	    });
+	    var protoLangSelector = function(plangnames) {
+	        $.each(plangnames, function(k, v) {
+		    $("#plangid").append("<option value='" + k + "'>" + v + "</option>");
+	        });
 
-	    $("#plangid").change(function() {
-		var plangid = $("#plangid").val();
-		var cogsetUrl = cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid;
-		$("#cogsets").jqGrid().setGridParam({
-		    url : cogsetUrl, 
-		    editData: {langid: plangid}
-		}).trigger("reloadGrid");
-		var reflexesUrl = cgiRoot + 'query.cgi?qtype=reflexes&plangid=' + plangid;
-		$("#reflexes").jqGrid().setGridParam({
-		    url : reflexesUrl, 
-		    editData: {plangid: plangid}
-		}).trigger("reloadGrid");
-		updateCogSet(0);
-	    });
+	        $("#plangid").change(function() {
+		    var plangid = $("#plangid").val();
+		    var cogsetUrl = cgiRoot + 'query.cgi?qtype=cogsets&langid=' + plangid;
+		    $("#cogsets").jqGrid().setGridParam({
+		        url : cogsetUrl, 
+		        editData: {langid: plangid}
+		    }).trigger("reloadGrid");
+		    var reflexesUrl = cgiRoot + 'query.cgi?qtype=reflexes&plangid=' + plangid;
+		    $("#reflexes").jqGrid().setGridParam({
+		        url : reflexesUrl, 
+		        editData: {plangid: plangid}
+		    }).trigger("reloadGrid");
+		    updateCogSet(0);
+	        });
 
-	    $("#plangid").val("17");
-	    return $("#plangid").val(); // default plangid
-	};
+	        $("#plangid").val("18");
+	        return $("#plangid").val(); // default plangid
+	    };
 
         // Create the three major user-interface components.
 	$.getJSON( cgiRoot + "query.cgi?qtype=plangnames",
@@ -437,9 +441,12 @@ $(document).ready(
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
 				      var cogsets = initCogSets(plangid);
+                                      $("#cogset-add").button().css("width", "100%");
+                                      $("#cogset-add").click( function(){ addReflexesToCogset(); });
+
 				      cogsets.setGridHeight(winHeight * 0.80);
                                       reflexes.setGridHeight(winHeight * 0.80);
-				      $("#cogset-box").css("max-height", (winHeight * 0.80 + 50) + "px");
+				          $("#cogset-box").css("max-height", (winHeight * 0.80 + 50) + "px");
                                   } );
                        
 		   }
