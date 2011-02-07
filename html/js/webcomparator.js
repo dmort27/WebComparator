@@ -229,7 +229,7 @@ $(document).ready(
 		$.ajax({
 		    url: cgiRoot + "query.cgi",
 		    data: {
-			qtype: "single"
+			qtype: "single",
 			refid: refid
 		    },
 		    dataType: "json",
