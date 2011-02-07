@@ -170,19 +170,20 @@ cgiMain :: CGIT IO CGIResult
 cgiMain = do
   qType <- getInput "qtype"
   conn <- liftIO connectDB
-  json <- getInputs >>= liftIO . handleSqlError .
-          (case qType of
-             Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name" "WHERE display ORDER BY langgrp, name")
-             Just "plangnames" ->  \_ -> (getJSONMap "langnames JOIN descendant_of ON langnames.langid=descendant_of.plangid" 
-                                                         "plangid" "name" "ORDER BY name")
-             Just "cogset" -> getCogSetJSON
-             Just "cogsets" -> jqSelectResp conn $ protoSelect'
-             Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
-             _ -> jqSelectResp conn $ reflexesSelect'
-          )
+  json <- getInputs >>= liftIO . handleSqlError . (chooseType conn qType) . map (mapPair decodeString)
   liftIO $ disconnect conn
   setHeader "Content-Type" "application/json; charset=utf-8"
   output $ encodeString $ encode $ json
+      where
+        chooseType conn qType = 
+            case qType of
+              Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name" "WHERE display ORDER BY langgrp, name")
+              Just "plangnames" ->  \_ -> (getJSONMap "langnames JOIN descendant_of ON langnames.langid=descendant_of.plangid" 
+                                                          "plangid" "name" "ORDER BY name")
+              Just "cogset" -> getCogSetJSON
+              Just "cogsets" -> jqSelectResp conn $ protoSelect'
+              Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
+              _ -> jqSelectResp conn $ reflexesSelect'
 
 main :: IO ()
 main = runCGI $ handleErrors $ cgiMain
