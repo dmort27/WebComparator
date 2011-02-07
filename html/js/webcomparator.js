@@ -226,8 +226,6 @@ $(document).ready(
 
 	    if (!protoForm && !protoGloss) {
 		var refid = prefid;
-		console.log("prefid=" + prefid);
-		console.log("Don't know that root. Looking...");
 		$.ajax({
 		    url: cgiRoot + "query.cgi",
 		    data: {

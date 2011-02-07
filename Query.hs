@@ -144,10 +144,9 @@ protoSelect' params = jqSelect' proto params
 getSingleReflex :: (IConnection conn) => conn -> [(String, String)] -> IO JSValue
 getSingleReflex conn params = do
   quickQuery' conn "SELECT form, gloss FROM reflexes WHERE refid=?" [nToSql refid] >>= 
-              return . makeObj . zip ["form","gloss"] . map (showJSON . intFromSql) . concat
+              return . makeObj . zip ["form","gloss"] 
+                              . map (showJSON . (fromSql :: SqlValue -> String)) . concat
       where
-        intFromSql :: SqlValue -> Int
-        intFromSql = fromSql
         refid = read $ fromJust $ lookup "refid" params
 
 -- Builds a hash-table (as a JSON object) from an SQL table given a
