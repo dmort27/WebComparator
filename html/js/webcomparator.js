@@ -219,7 +219,7 @@ $(document).ready(
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
 	    if (!protoForm && !protoGloss) {
-		$.ajax(
+		$.ajax({
 		    data: {
 			oper: "reflex",
 			refid: prefid
@@ -231,7 +231,7 @@ $(document).ready(
 			protoForm = data.form;
 			protoGloss = data.gloss;
 		    }
-		);
+		});
 	    }
 	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
 	    $("#cogset-protoform").empty().append("*" + protoForm);
