@@ -225,12 +225,13 @@ $(document).ready(
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
 	    if (!protoForm && !protoGloss) {
-		console.log("Don't know that root. Looking...")
+		var refid = $("body").data("prefid", prefid);
+		console.log("Don't know that root. Looking...");
 		$.ajax({
 		    url: cgiRoot + "query.cgi",
 		    data: {
 			oper: "reflex",
-			refid: $("body").data("prefid", prefid)
+			refid: refid
 		    },
 		    dataType: "json",
 		    type: "GET",
