@@ -231,7 +231,7 @@ $(document).ready(
 		$.ajax({
 		    url: cgiRoot + "query.cgi",
 		    data: {
-			oper: "reflex",
+			oper: "single",
 			refid: refid
 		    },
 		    dataType: "json",

@@ -143,7 +143,7 @@ protoSelect' params = jqSelect' proto params
 
 getSingleReflex :: (IConnection conn) => conn -> [(String, String)] -> IO JSValue
 getSingleReflex conn params = do
-  quickQuery' conn "SELECT form, gloss FROM reflefxes WHERE refid=?" [nToSql refid] >>= 
+  quickQuery' conn "SELECT form, gloss FROM reflexes WHERE refid=?" [nToSql refid] >>= 
               return . makeObj . zip ["form","gloss"] . map (showJSON . intFromSql) . concat
       where
         intFromSql :: SqlValue -> Int
@@ -192,7 +192,7 @@ cgiMain = do
               Just "cogset" -> getCogSetJSON
               Just "cogsets" -> jqSelectResp conn $ protoSelect'
               Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
-              Just "reflex" -> getSingleReflex conn
+              Just "single" -> getSingleReflex conn
               _ -> jqSelectResp conn $ reflexesSelect'
 
 main :: IO ()
