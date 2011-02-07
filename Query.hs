@@ -141,6 +141,15 @@ protoSelect' params = jqSelect' proto params
                               $ [WhEqNum "langid" plangid] ++ wheres
               }
 
+getSingleReflex :: (IConnection conn) => conn -> [(String, String)] -> IO JSValue
+getSingleReflex conn params = do
+  quickQuery' conn "SELECT form, gloss FROM reflefxes WHERE refid=?" [nToSql refid] >>= 
+              return . makeObj . zip ["form","gloss"] . map (showJSON . intFromSql) . concat
+      where
+        intFromSql :: SqlValue -> Int
+        intFromSql = fromSql
+        refid = read $ fromJust $ lookup "refid" params
+
 -- Builds a hash-table (as a JSON object) from an SQL table given a
 -- table name, the field to use for the key, and the field to use as
 -- the value.
@@ -183,6 +192,7 @@ cgiMain = do
               Just "cogset" -> getCogSetJSON
               Just "cogsets" -> jqSelectResp conn $ protoSelect'
               Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
+              Just "reflex" -> getSingleReflex conn
               _ -> jqSelectResp conn $ reflexesSelect'
 
 main :: IO ()

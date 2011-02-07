@@ -5,7 +5,7 @@ $(document).ready(
 
         /* GLOBAL SITE SETTINGS */
 
-        var cgiRoot = '/cgi-bin/';
+        var cgiRoot = '';
         
         // Formatters and unformatters
 	var protoformFormat = function(s) { return ('*' + s); };
@@ -219,6 +219,19 @@ $(document).ready(
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
 	    if (!protoForm && !protoGloss) {
+		$.ajax(
+		    data: {
+			oper: "reflex",
+			refid: prefid
+		    },
+		    dataType: "json",
+		    type: "GET",
+		    async: false,
+		    success: function (data) {
+			protoForm = data.form;
+			protoGloss = data.gloss;
+		    }
+		);
 	    }
 	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
 	    $("#cogset-protoform").empty().append("*" + protoForm);
@@ -409,26 +422,7 @@ $(document).ready(
 
 	// Set keybindings here.
 
-        // 	$(document).bind('keydown', 'Ctrl+a', function() {
-        // 	    var refid = $("body").data("refid");
-        // 	    var data = { oper:"addtoset",
-        // 			 prefid: $("body").data("prefid"), 
-        // 			 refid: refid,
-        // 			 langid: getLangId($("#reflexes").getCell(refid, "langid")),
-        // 			 form: $("#reflexes").getCell(refid, "form"),
-        // 			 plangid: $("#plangid").val(),
-        // 			 protoform: $("#cogset-protoform").data("form"),
-        // 			 protogloss: $("#cogset-protoform").data("gloss")
-        // 		       };
-        // 	    $.ajax({ url: cgiRoot + "edit.cgi", 
-        // 		     data: data,
-            // 		     type: "POST",
-        // 		     success: function() { updateCogSet( $("body").data("prefid") ); }
-        // 		   });
-        // 	});
-
-            
-	    $(document).bind('keydown', 'Ctrl+a', function() { addReflexesToCogset(); });
+	$(document).bind('keydown', 'Ctrl+a', function() { addReflexesToCogset(); });            
         
         var authDialog = $("#auth-dialog").dialog({
             autoOpen: false,
