@@ -202,7 +202,13 @@ $(document).ready(
 		};
 	    });
 	    };
-        
+
+	var updateCogSetInfo = function(protoForm, protoGloss) {
+	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
+	    $("#cogset-protoform").empty().append("*" + protoForm);
+	    $("#cogset-protogloss").empty().append("‘" + protoGloss + "’");
+	};
+
 	// Refreshes the display of the current cognate set.
 	var updateCogSet = function(prefid) {
 
@@ -218,7 +224,7 @@ $(document).ready(
 	    var protoForm = $("#cogsets").getCell(prefid, "form");
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
-	    if (!protoForm && !protoGloss) {
+	    if (!protoForm || !protoGloss) {
 		$.ajax({
 		    data: {
 			oper: "reflex",
@@ -226,16 +232,14 @@ $(document).ready(
 		    },
 		    dataType: "json",
 		    type: "GET",
-		    async: false,
 		    success: function (data) {
-			protoForm = data.form;
-			protoGloss = data.gloss;
+			updateCogSetInfo(data.form, data.gloss);
+			console.log("data="+data)
 		    }
 		});
+	    } else {
+		updateCogSetInfo(protoForm, protoGloss);
 	    }
-	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
-	    $("#cogset-protoform").empty().append("*" + protoForm);
-	    $("#cogset-protogloss").empty().append("‘" + protoGloss + "’");
 
             // Callback which does most of the actual work of displaying cognet set and setting up events on it.
 	    var updateCogSetP = function(data) {
