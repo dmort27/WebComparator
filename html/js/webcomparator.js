@@ -230,7 +230,7 @@ $(document).ready(
 		    url: cgiRoot + "query.cgi",
 		    data: {
 			oper: "reflex",
-			refid: prefid
+			refid: $("body").data("prefid", prefid)
 		    },
 		    dataType: "json",
 		    type: "GET",
