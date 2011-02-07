@@ -224,8 +224,10 @@ $(document).ready(
 	    var protoForm = $("#cogsets").getCell(prefid, "form");
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
-	    if (!protoForm || !protoGloss) {
+	    if (!protoForm && !protoGloss) {
+		console.log("Don't know that root. Looking...")
 		$.ajax({
+		    url: cgiRoot + "edit.cgi"
 		    data: {
 			oper: "reflex",
 			refid: prefid
@@ -233,8 +235,8 @@ $(document).ready(
 		    dataType: "json",
 		    type: "GET",
 		    success: function (data) {
+			console.log("data="+data);
 			updateCogSetInfo(data.form, data.gloss);
-			console.log("data="+data)
 		    }
 		});
 	    } else {
