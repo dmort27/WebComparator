@@ -225,7 +225,8 @@ $(document).ready(
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
 	    if (!protoForm && !protoGloss) {
-		var refid = $("body").data("prefid", prefid);
+		var refid = prefid;
+		console.log("prefid=" + prefid);
 		console.log("Don't know that root. Looking...");
 		$.ajax({
 		    url: cgiRoot + "query.cgi",
