@@ -192,7 +192,7 @@ cgiMain = do
               Just "cogsets" -> jqSelectResp conn $ protoSelect'
               Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
               Just "single" -> getSingleReflex conn
-              _ -> jqSelectResp conn $ reflexesSelect'
+              _ -> \_ -> return $ showJSON "No qtype given."
 
 main :: IO ()
 main = runCGI $ handleErrors $ cgiMain
