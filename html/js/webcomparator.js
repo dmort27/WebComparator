@@ -227,7 +227,7 @@ $(document).ready(
 	    if (!protoForm && !protoGloss) {
 		console.log("Don't know that root. Looking...")
 		$.ajax({
-		    url: cgiRoot + "edit.cgi"
+		    url: cgiRoot + "edit.cgi",
 		    data: {
 			oper: "reflex",
 			refid: prefid
