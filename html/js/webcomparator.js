@@ -378,7 +378,7 @@ $(document).ready(
 		mtype: 'GET',
 		height: "100%",
 		width: 400,
-		colNames: ["ID", "Cognate Morph Map", "Form", "Gloss", "Language"],
+		colNames: ["ID", "Cognate Morph Map", "Form", "Gloss", "Language", "Group"],
 		colModel: [
                     { name: 'refid', index:'refid', width:50, hidden: true, search: false },
 		    { name: 'cogmorph', index:'cogmorph', width:50, hidden: true, search: false },
@@ -389,7 +389,8 @@ $(document).ready(
 		    { name: 'langid', index:'langid', width:50, align: 'left', editable: true, edittype: "select", 
 		      editoptions: {size: 40, value:langnames},
 		      stype: "select", searchoptions: {value: ":All;" + objToSelectString(langnames)},
-		      formatter:langFormat, unformat:langUnformat }
+		      formatter:langFormat, unformat:langUnformat },
+		    { name: 'langgrp', index:'langgrp', width:50, align: 'left'}
 		],
 		page: 1,
 		pager: '#reflexes-pager',
