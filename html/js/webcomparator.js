@@ -275,8 +275,7 @@ $(document).ready(
 				.data(formData);
 			    $("#cogset-tbody tr:last td:last").append(thisForm);
                             thisForm.click( function() {
-                                thisForm.toggleClass("selected");
-                                thisForm.toggleClass("ui-state-highlight");
+                                thisForm.toggleClass("selected ui-state-highlight");
                             });
 			});
 		    }
@@ -523,9 +522,12 @@ $(document).ready(
                                       $("#cogset-remove").click( function(){ removeReflexesFromCogset(); });
                                       $("#cogset-paste").click( function(){ pasteReflexesToCogset(); });
 				      $("#cogset-select").click( function() { 
-					  $("div.ref")
-					      .addClass("selected")
-					      .addClass("ui-state-highlight");
+					  if ($("div.ref.selected").size() === $("div.ref").size()) {
+					      $("div.ref").removeClass("selected ui-state-highlight");
+					  } else {
+					      $("div.ref").addClass("selected ui-state-highlight");
+					  }
+
 				      });
                                       setDimensions();
                                   } );
