@@ -322,13 +322,14 @@ $(document).ready(
 		mtype: 'GET',
 		height: "100%",
 		width: 350,
-		colNames: ["Set ID", "Proto-form", "Gloss"],
+		colNames: ["Set ID", "Proto-form", "Gloss", "Num"],
 		colModel: [
                     { name:'refid', index:'refid', width:50, hidden: true, search: false },
 		    { name: 'form', index:'form', width:50, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:protoformFormat, unformat:protoformUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
-		      formatter:glossFormat, unformat:generalUnformat }
+		      formatter:glossFormat, unformat:generalUnformat },
+		    ( name: "numref", index:'numref', width:25, hidden: false, search: true }
 		],
 		page: 1,
 		pager: '#cogsets-pager',

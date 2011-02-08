@@ -137,9 +137,15 @@ protoSelect' params = jqSelect' proto params
       proto = defaultJQSelect 
               { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss" ]
               , selectSource = SelectSource "reflexes"
+              , selectJoins = SelectJoins [JnSelUsing JnLeft numRef ["refid"]]
               , selectWhere = SelectWhere $ WhAnd 
                               $ [WhEqNum "langid" plangid] ++ wheres
               }
+      numRef = defaultJQSelect
+               { selectFields = SelectFields [SelectFieldAs "prefid" "refid", SelectFieldAs "COUNT(*)" "numref"]
+               , selectSource = SelectSource "reflex_of"
+               , selectGroup = SelectGroup ["prefid"]
+               }
 
 getSingleReflex :: (IConnection conn) => conn -> [(String, String)] -> IO JSValue
 getSingleReflex conn params = do
