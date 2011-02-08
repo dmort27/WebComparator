@@ -515,12 +515,18 @@ $(document).ready(
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
 				      var cogsets = initCogSets(plangid);
-                                      $("#cogset-add").button().css("width", "32%");
-                                      $("#cogset-remove").button().css("width", "32%");
-                                      $("#cogset-paste").button().css("width", "32%");
+                                      $("#cogset-add").button().css("width", "24%");
+                                      $("#cogset-remove").button().css("width", "24%");
+                                      $("#cogset-paste").button().css("width", "24%");
+                                      $("#cogset-select").button().css("width", "24%");
                                       $("#cogset-add").click( function(){ addReflexesToCogset(); });
                                       $("#cogset-remove").click( function(){ removeReflexesFromCogset(); });
                                       $("#cogset-paste").click( function(){ pasteReflexesToCogset(); });
+				      $("#cogset-select").click( function() { 
+					  $("div.ref")
+					      .addClass("selected")
+					      .addClass("ui-state-highlight");
+				      });
                                       setDimensions();
                                   } );
                        
