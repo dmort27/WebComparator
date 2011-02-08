@@ -112,7 +112,9 @@ reflexesSelect' params = jqSelect' reflexes params
       strFields = ["form", "gloss", "langid", "langgrp"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
       reflexes = defaultJQSelect 
-                 { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss", "langid", "cogmorph" ]
+                 { selectFields = SelectFields $ (map SelectField [ "refid", "form", "gloss" ]) ++ 
+                   [SelectFieldAs "descendant_of.langid" "langid"] ++ 
+                   (map SelectField [ "cogmorph", "langgrp" ])
                  , selectSource = SelectSource "descendant_of"
                  , selectJoins = SelectJoins [ JnUsing JnPlain "reflexes" ["langid"]
                                              , JnOn JnPlain "langnames" "langnames.langid" "descendant_of.langid"
