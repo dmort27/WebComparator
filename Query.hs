@@ -115,7 +115,7 @@ reflexesSelect' params = jqSelect' reflexes params
                  { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss", "langid", "cogmorph" ]
                  , selectSource = SelectSource "descendant_of"
                  , selectJoins = SelectJoins [ JnUsing JnPlain "reflexes" ["langid"]
-                                             , JnUsing JnPlain "langnames" ["langid"]
+                                             , JnOn JnPlain "langnames" "langnames.langid" "descendant_of.langid"
                                              , JnSelOn JnLeft reflexOf "refid" "ro_refid" 
                                              ]
                  , selectWhere = SelectWhere $ WhAnd $ [WhEqNum "plangid" plangid] ++ wheres
