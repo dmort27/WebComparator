@@ -522,7 +522,7 @@ $(document).ready(
                                       $("#cogset-remove").click( function(){ removeReflexesFromCogset(); });
                                       $("#cogset-paste").click( function(){ pasteReflexesToCogset(); });
 				      $("#cogset-select").click( function() { 
-					  if ($("div.ref.selected").size() === $("div.ref").size()) {
+					  if ($("div.ref.selected").size() == $("div.ref").size()) {
 					      $("div.ref").removeClass("selected ui-state-highlight");
 					  } else {
 					      $("div.ref").addClass("selected ui-state-highlight");
