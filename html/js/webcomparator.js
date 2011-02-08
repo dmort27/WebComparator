@@ -329,7 +329,7 @@ $(document).ready(
 		      formatter:protoformFormat, unformat:protoformUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:glossFormat, unformat:generalUnformat },
-		    ( name: "numref", index:'numref', width:25, hidden: false, search: true }
+		    { name: "numref", index:'numref', width:25, hidden: false, search: true }
 		],
 		page: 1,
 		pager: '#cogsets-pager',
