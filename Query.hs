@@ -109,7 +109,7 @@ reflexesSelect' :: [(String, String)] -> JQSelect
 reflexesSelect' params = jqSelect' reflexes params
     where
       plangid = read $ fromJust $ lookup "plangid" params
-      strFields = ["form", "gloss", "langid", "numref"]
+      strFields = ["form", "gloss", "langid"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
       reflexes = defaultJQSelect 
                  { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss", "langid", "cogmorph" ]
@@ -135,7 +135,7 @@ protoSelect' params = jqSelect' proto params
       strFields = ["form", "gloss"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
       proto = defaultJQSelect 
-              { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss" ]
+              { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss", "numref" ]
               , selectSource = SelectSource "reflexes"
               , selectJoins = SelectJoins [JnSelUsing JnLeft numRef ["refid"]]
               , selectWhere = SelectWhere $ WhAnd 
