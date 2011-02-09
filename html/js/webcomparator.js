@@ -5,7 +5,7 @@ $(document).ready(
 
         /* GLOBAL SITE SETTINGS */
 
-        var cgiRoot = '/cgi-bin/';
+        var cgiRoot = '';
         
         // Formatters and unformatters
 	var protoformFormat = function(s) { return ('*' + s); };
@@ -202,7 +202,13 @@ $(document).ready(
 		};
 	    });
 	    };
-        
+
+	var updateCogSetInfo = function(protoForm, protoGloss) {
+	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
+	    $("#cogset-protoform").empty().append("*" + protoForm);
+	    $("#cogset-protogloss").empty().append("‘" + protoGloss + "’");
+	};
+
 	// Refreshes the display of the current cognate set.
 	var updateCogSet = function(prefid) {
 
@@ -219,10 +225,23 @@ $(document).ready(
 	    var protoGloss = $("#cogsets").getCell(prefid, "gloss");
 
 	    if (!protoForm && !protoGloss) {
+		var refid = prefid;
+		$.ajax({
+		    url: cgiRoot + "query.cgi",
+		    data: {
+			qtype: "single",
+			refid: refid
+		    },
+		    dataType: "json",
+		    type: "GET",
+		    success: function (data) {
+			console.log("data="+data);
+			updateCogSetInfo(data.form, data.gloss);
+		    }
+		});
+	    } else {
+		updateCogSetInfo(protoForm, protoGloss);
 	    }
-	    $("#cogset-protoform").data({form: protoForm, gloss: protoGloss});
-	    $("#cogset-protoform").empty().append("*" + protoForm);
-	    $("#cogset-protogloss").empty().append("‘" + protoGloss + "’");
 
             // Callback which does most of the actual work of displaying cognet set and setting up events on it.
 	    var updateCogSetP = function(data) {
@@ -256,8 +275,7 @@ $(document).ready(
 				.data(formData);
 			    $("#cogset-tbody tr:last td:last").append(thisForm);
                             thisForm.click( function() {
-                                thisForm.toggleClass("selected");
-                                thisForm.toggleClass("ui-state-highlight");
+                                thisForm.toggleClass("selected ui-state-highlight");
                             });
 			});
 		    }
@@ -303,13 +321,14 @@ $(document).ready(
 		mtype: 'GET',
 		height: "100%",
 		width: 350,
-		colNames: ["Set ID", "Proto-form", "Gloss"],
+		colNames: ["Set ID", "Proto-form", "Gloss", "Num"],
 		colModel: [
                     { name:'refid', index:'refid', width:50, hidden: true, search: false },
 		    { name: 'form', index:'form', width:50, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:protoformFormat, unformat:protoformUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
-		      formatter:glossFormat, unformat:generalUnformat }
+		      formatter:glossFormat, unformat:generalUnformat },
+		    { name: "numref", index:'numref', width:25, hidden: false, search: true }
 		],
 		page: 1,
 		pager: '#cogsets-pager',
@@ -358,7 +377,7 @@ $(document).ready(
 		mtype: 'GET',
 		height: "100%",
 		width: 400,
-		colNames: ["ID", "Cognate Morph Map", "Form", "Gloss", "Language"],
+		colNames: ["ID", "Cognate Morph Map", "Form", "Gloss", "Language", "Group"],
 		colModel: [
                     { name: 'refid', index:'refid', width:50, hidden: true, search: false },
 		    { name: 'cogmorph', index:'cogmorph', width:50, hidden: true, search: false },
@@ -369,7 +388,8 @@ $(document).ready(
 		    { name: 'langid', index:'langid', width:50, align: 'left', editable: true, edittype: "select", 
 		      editoptions: {size: 40, value:langnames},
 		      stype: "select", searchoptions: {value: ":All;" + objToSelectString(langnames)},
-		      formatter:langFormat, unformat:langUnformat }
+		      formatter:langFormat, unformat:langUnformat },
+		    { name: 'langgrp', index:'langgrp', width:50, align: 'left'}
 		],
 		page: 1,
 		pager: '#reflexes-pager',
@@ -409,26 +429,7 @@ $(document).ready(
 
 	// Set keybindings here.
 
-        // 	$(document).bind('keydown', 'Ctrl+a', function() {
-        // 	    var refid = $("body").data("refid");
-        // 	    var data = { oper:"addtoset",
-        // 			 prefid: $("body").data("prefid"), 
-        // 			 refid: refid,
-        // 			 langid: getLangId($("#reflexes").getCell(refid, "langid")),
-        // 			 form: $("#reflexes").getCell(refid, "form"),
-        // 			 plangid: $("#plangid").val(),
-        // 			 protoform: $("#cogset-protoform").data("form"),
-        // 			 protogloss: $("#cogset-protoform").data("gloss")
-        // 		       };
-        // 	    $.ajax({ url: cgiRoot + "edit.cgi", 
-        // 		     data: data,
-            // 		     type: "POST",
-        // 		     success: function() { updateCogSet( $("body").data("prefid") ); }
-        // 		   });
-        // 	});
-
-            
-	    $(document).bind('keydown', 'Ctrl+a', function() { addReflexesToCogset(); });
+	$(document).bind('keydown', 'Ctrl+a', function() { addReflexesToCogset(); });            
         
         var authDialog = $("#auth-dialog").dialog({
             autoOpen: false,
@@ -513,12 +514,21 @@ $(document).ready(
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
 				      var cogsets = initCogSets(plangid);
-                                      $("#cogset-add").button().css("width", "32%");
-                                      $("#cogset-remove").button().css("width", "32%");
-                                      $("#cogset-paste").button().css("width", "32%");
+                                      $("#cogset-add").button().css("width", "24%");
+                                      $("#cogset-remove").button().css("width", "24%");
+                                      $("#cogset-paste").button().css("width", "24%");
+                                      $("#cogset-select").button().css("width", "24%");
                                       $("#cogset-add").click( function(){ addReflexesToCogset(); });
                                       $("#cogset-remove").click( function(){ removeReflexesFromCogset(); });
                                       $("#cogset-paste").click( function(){ pasteReflexesToCogset(); });
+				      $("#cogset-select").click( function() { 
+					  if ($("div.ref.selected").size() == $("div.ref").size()) {
+					      $("div.ref").removeClass("selected ui-state-highlight");
+					  } else {
+					      $("div.ref").addClass("selected ui-state-highlight");
+					  }
+
+				      });
                                       setDimensions();
                                   } );
                        

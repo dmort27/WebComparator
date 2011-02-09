@@ -109,13 +109,17 @@ reflexesSelect' :: [(String, String)] -> JQSelect
 reflexesSelect' params = jqSelect' reflexes params
     where
       plangid = read $ fromJust $ lookup "plangid" params
-      strFields = ["form", "gloss", "langid"]
+      strFields = ["form", "gloss", "langid", "langgrp"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
       reflexes = defaultJQSelect 
-                 { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss", "langid", "cogmorph" ]
+                 { selectFields = SelectFields $ (map SelectField [ "refid", "form", "gloss" ]) ++ 
+                   [SelectFieldAs "descendant_of.langid" "langid"] ++ 
+                   (map SelectField [ "cogmorph", "langgrp" ])
                  , selectSource = SelectSource "descendant_of"
                  , selectJoins = SelectJoins [ JnUsing JnPlain "reflexes" ["langid"]
-                                             , JnSelOn JnLeft reflexOf "refid" "ro_refid" ]
+                                             , JnOn JnPlain "langnames" "langnames.langid" "descendant_of.langid"
+                                             , JnSelOn JnLeft reflexOf "refid" "ro_refid" 
+                                             ]
                  , selectWhere = SelectWhere $ WhAnd $ [WhEqNum "plangid" plangid] ++ wheres
                  }
       reflexOf = defaultJQSelect
@@ -132,14 +136,28 @@ protoSelect' :: [(String, String)] -> JQSelect
 protoSelect' params = jqSelect' proto params
     where
       plangid = read $ fromMaybe "0" $ lookup "langid" params
-      strFields = ["form", "gloss"]
+      strFields = ["form", "gloss", "numref"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
       proto = defaultJQSelect 
-              { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss" ]
+              { selectFields = SelectFields $ map SelectField [ "refid", "form", "gloss", "numref" ]
               , selectSource = SelectSource "reflexes"
+              , selectJoins = SelectJoins [JnSelUsing JnLeft numRef ["refid"]]
               , selectWhere = SelectWhere $ WhAnd 
                               $ [WhEqNum "langid" plangid] ++ wheres
               }
+      numRef = defaultJQSelect
+               { selectFields = SelectFields [SelectFieldAs "prefid" "refid", SelectFieldAs "COUNT(*)" "numref"]
+               , selectSource = SelectSource "reflex_of"
+               , selectGroup = SelectGroup ["prefid"]
+               }
+
+getSingleReflex :: (IConnection conn) => conn -> [(String, String)] -> IO JSValue
+getSingleReflex conn params = do
+  quickQuery' conn "SELECT form, gloss FROM reflexes WHERE refid=?" [nToSql refid] >>= 
+              return . makeObj . zip ["form","gloss"] 
+                              . map (showJSON . (fromSql :: SqlValue -> String)) . concat
+      where
+        refid = read $ fromJust $ lookup "refid" params
 
 -- Builds a hash-table (as a JSON object) from an SQL table given a
 -- table name, the field to use for the key, and the field to use as
@@ -170,19 +188,21 @@ cgiMain :: CGIT IO CGIResult
 cgiMain = do
   qType <- getInput "qtype"
   conn <- liftIO connectDB
-  json <- getInputs >>= liftIO . handleSqlError .
-          (case qType of
-             Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name" "WHERE display ORDER BY langgrp, name")
-             Just "plangnames" ->  \_ -> (getJSONMap "langnames JOIN descendant_of ON langnames.langid=descendant_of.plangid" 
-                                                         "plangid" "name" "ORDER BY name")
-             Just "cogset" -> getCogSetJSON
-             Just "cogsets" -> jqSelectResp conn $ protoSelect'
-             Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
-             _ -> jqSelectResp conn $ reflexesSelect'
-          )
+  json <- getInputs >>= liftIO . handleSqlError . (chooseType conn qType) . map (mapPair decodeString)
   liftIO $ disconnect conn
   setHeader "Content-Type" "application/json; charset=utf-8"
   output $ encodeString $ encode $ json
+      where
+        chooseType conn qType = 
+            case qType of
+              Just "langnames" ->  \_ -> (getJSONMap "langnames" "langid" "name" "WHERE display ORDER BY langgrp, name")
+              Just "plangnames" ->  \_ -> (getJSONMap "langnames JOIN descendant_of ON langnames.langid=descendant_of.plangid" 
+                                                          "plangid" "name" "ORDER BY name")
+              Just "cogset" -> getCogSetJSON
+              Just "cogsets" -> jqSelectResp conn $ protoSelect'
+              Just "reflexes" -> jqSelectResp conn $ reflexesSelect'
+              Just "single" -> getSingleReflex conn
+              _ -> \_ -> return $ showJSON "No qtype given."
 
 main :: IO ()
 main = runCGI $ handleErrors $ cgiMain
