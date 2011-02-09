@@ -49,7 +49,7 @@ $(document).ready(
                 success : function () {
                     updateCogSet( $("body").data("prefid") );
                     $("body").data("lastremoved", rem);
-                    $("#reflexes").triggerToolbar();
+                    $("#reflexes")[0].triggerToolbar();
                 }
             });
         };
@@ -68,7 +68,8 @@ $(document).ready(
 		         data: data,
 		         type: "POST",
 		         success: function() {
-                             $("#reflexes").resetSelection().triggerToolbar();
+                             $("#reflexes").resetSelection();
+			     $("#reflexes").[0].triggerToolbar();
                              updateCogSet( $("body").data("prefid") );
                          }
 		       });
