@@ -69,7 +69,7 @@ $(document).ready(
 		         type: "POST",
 		         success: function() {
                              $("#reflexes").resetSelection();
-			     $("#reflexes").[0].triggerToolbar();
+			     $("#reflexes")[0].triggerToolbar();
                              updateCogSet( $("body").data("prefid") );
                          }
 		       });
