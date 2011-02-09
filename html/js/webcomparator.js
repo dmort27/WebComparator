@@ -49,7 +49,7 @@ $(document).ready(
                 success : function () {
                     updateCogSet( $("body").data("prefid") );
                     $("body").data("lastremoved", rem);
-                    
+                    $("#reflexes").triggerToolbar();
                 }
             });
         };
@@ -68,7 +68,7 @@ $(document).ready(
 		         data: data,
 		         type: "POST",
 		         success: function() {
-                             $("#reflexes").resetSelection();
+                             $("#reflexes").resetSelection().triggerToolbar();
                              updateCogSet( $("body").data("prefid") );
                          }
 		       });
@@ -92,7 +92,7 @@ $(document).ready(
 		     data: data,
 		     type: "POST",
 		     success: function() {
-                         $("#reflexes").resetSelection();
+                         $("#reflexes").resetSelection().triggerToolbar();
                          updateCogSet( $("body").data("prefid") );
                      }
             });
