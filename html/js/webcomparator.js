@@ -385,7 +385,7 @@ $(document).ready(
 		      formatter:reflexFormat, unformat:reflexUnformat },
 		    { name: 'gloss', index:'gloss', width:100, align: 'left', editable: true, editoptions: {size: 40},
 		      formatter:glossFormat, unformat:generalUnformat },
-		    { name: 'langid', index:'langid', width:50, align: 'left', editable: true, edittype: "select", 
+		    { name: 'langid', index:'langnames.langid', width:50, align: 'left', editable: true, edittype: "select", 
 		      editoptions: {size: 40, value:langnames},
 		      stype: "select", searchoptions: {value: ":All;" + objToSelectString(langnames)},
 		      formatter:langFormat, unformat:langUnformat },
@@ -514,10 +514,10 @@ $(document).ready(
 				      var cogset = updateCogSet( $("body").data("prefid") );
                                       var reflexes = initReflexes(langnames);
 				      var cogsets = initCogSets(plangid);
-                                      $("#cogset-add").button().css("width", "24%");
-                                      $("#cogset-remove").button().css("width", "24%");
-                                      $("#cogset-paste").button().css("width", "24%");
-                                      $("#cogset-select").button().css("width", "24%");
+                                      $("#cogset-add").button().css("width", "23%");
+                                      $("#cogset-remove").button().css("width", "23%");
+                                      $("#cogset-paste").button().css("width", "23%");
+                                      $("#cogset-select").button().css("width", "23%");
                                       $("#cogset-add").click( function(){ addReflexesToCogset(); });
                                       $("#cogset-remove").click( function(){ removeReflexesFromCogset(); });
                                       $("#cogset-paste").click( function(){ pasteReflexesToCogset(); });

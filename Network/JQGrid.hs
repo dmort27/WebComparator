@@ -328,6 +328,7 @@ jqSelectCount jqselect =
                                                            JnSelOn _ _ _ _ -> False
                                                            JnSelUsing _ _ _ -> False
                                                            _ -> True) (joins)
+             , selectOrder = SelectOrderNone
              , selectLimit = SelectLimitNone
              }
     where
