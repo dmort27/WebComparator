@@ -79,7 +79,7 @@ cogsetSelect' params = jqSelect
                       [ JnSelUsing JnPlain reflexes ["langid"]]
                       []
                       ["langid"]
-                      [("langgrp","ASC"), ("name", "ASC")]
+                      [("langgrp","ASC"), ("langsubgrp","ASC"), ("name", "ASC")]
                       SelectLimitNone
                       (params)
                           where
@@ -94,7 +94,7 @@ cogsetSelect' params = jqSelect
                                        SelectLimitNone
                                        []
                             langs = jqSelect 
-                                    ["langid", "name", "langgrp"]
+                                    ["langid", "name", "langgrp", "langsubgrp"]
                                     []
                                     (SelectSource "descendant_of")
                                     [JnUsing JnPlain "langnames" ["langid"]]
@@ -109,7 +109,7 @@ reflexesSelect' :: [(String, String)] -> JQSelect
 reflexesSelect' params = jqSelect' reflexes params
     where
       plangid = read $ fromJust $ lookup "plangid" params
-      strFields = ["form", "gloss", "langid", "langgrp"]
+      strFields = ["form", "gloss", "langnames.langid", "langgrp"]
       wheres = [WhLike f v | (f, v) <- params, f `elem` strFields]
       reflexes = defaultJQSelect 
                  { selectFields = SelectFields $ (map SelectField [ "refid", "form", "gloss" ]) ++ 
