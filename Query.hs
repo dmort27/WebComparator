@@ -79,7 +79,7 @@ cogsetSelect' params = jqSelect
                       [ JnSelUsing JnPlain reflexes ["langid"]]
                       []
                       ["langid"]
-                      [("langgrp","ASC"), ("name", "ASC")]
+                      [("langgrp","ASC"), ("langsubgrp","ASC"), ("name", "ASC")]
                       SelectLimitNone
                       (params)
                           where
@@ -94,7 +94,7 @@ cogsetSelect' params = jqSelect
                                        SelectLimitNone
                                        []
                             langs = jqSelect 
-                                    ["langid", "name", "langgrp"]
+                                    ["langid", "name", "langgrp", "langsubgrp"]
                                     []
                                     (SelectSource "descendant_of")
                                     [JnUsing JnPlain "langnames" ["langid"]]
