@@ -236,7 +236,6 @@ $(document).ready(
 		    dataType: "json",
 		    type: "GET",
 		    success: function (data) {
-			console.log("data="+data);
 			updateCogSetInfo(data.form, data.gloss);
 		    }
 		});
@@ -537,7 +536,6 @@ $(document).ready(
 		 );
 
         $(window).resize( function() {
-            console.log("Window resized.");
             setDimensions();
         });
     });
