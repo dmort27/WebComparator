@@ -5,6 +5,10 @@ module PhonData ( elementTable
 import Database.HDBC.Sqlite3
 import Database.HDBC
 
+import Data.List (intercalate)
+import Data.List.Split (split, splitOn, startsWithOneOf)
+import Text.Printf (printf)
+
 import Data.Phonology
 import Site
 
@@ -36,6 +40,45 @@ syllabifyLanguage langid = do
              mapM_ (putStrLn . showPhonClass . parseWord onsets codas . filter (`notElem` "()-◦") . fromSql) . concat
   --disconnect conn
   return ()
+
+data ACTRow = ACTRow 
+    { actID :: Int
+    , actProtoForm :: String
+    , actProtoGloss :: String
+    , actReflexes :: [[(String, Int)]]
+    } deriving (Show,Eq)
+
+type ACT = [ACTRow]
+
+makeAbstractCogTable :: (IConnection conn) => conn -> Int -> [Int] -> IO ACT
+makeAbstractCogTable conn plangid langids = quickQuery conn sql [] >>= return . map fromRow
+      where
+        sql = concat [ "SELECT refid as prefid, form AS protofrom, gloss AS protogloss, "
+                     , (intercalate ", " $ map (printf "forms%d") langids)
+                     , " FROM reflexes "
+                     , intercalate " " $ map (\id -> 
+                                                  printf ("LEFT JOIN (SELECT prefid AS prefid%d, " ++ 
+                                                          "'[' || GROUP_CONCAT( '(\"' || form || '\",' || morph_index || ')' ) || ']' AS forms%d " ++ 
+                                                          "FROM reflex_of JOIN reflexes USING (refid) " ++ 
+                                                          "WHERE langid=%d GROUP BY prefid%d) ON prefid=prefid%d") id id id id id) langids
+                     ]
+        nullToEmpty :: SqlValue -> SqlValue
+        nullToEmpty SqlNull = SqlString "[]"
+        nullToEmpty x = x
+        fromRow :: [SqlValue] -> ACTRow
+        fromRow (prefid:protoform:protogloss:xs) = 
+            ACTRow 
+            { actID = fromSql prefid
+            , actProtoForm = fromSql protoform
+            , actProtoGloss = fromSql protogloss
+            , actReflexes = map (read . fromSql . nullToEmpty) xs
+            }
+
+trimToCogMorph :: (String, Int) -> String
+trimToCogMorph (wd, ind) = (!!ind) $ concatMap (splitOn "-") $ splitOn " " wd
+
+transformRow :: ((String, Int) -> (String, Int)) -> ACTRow -> ACTRow
+transformRow f row = row { actReflexes = map (map f) $ actReflexes row }
 
 buildTables = do 
   conn <- connectDB
