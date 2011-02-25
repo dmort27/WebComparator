@@ -45,6 +45,20 @@ syllabifyLanguage langid = do
   --disconnect conn
   return ()
 
+buildTables = do 
+  conn <- connectDB
+  run conn "DROP TABLE IF EXISTS onsets_codas" []
+  run conn "CREATE TABLE \"onsets_codas\" (\"langid\" integer NOT NULL, \"element\" text NOT NULL, \"element_type\" integer NOT NULL, CONSTRAINT \"element_unique\" UNIQUE (langid, element, element_type) ON CONFLICT IGNORE)" []
+  insertOnset <- prepare conn "INSERT INTO onsets_codas (langid, element, element_type) VALUES (?, ?, 0)"
+  insertCoda <- prepare conn "INSERT INTO onsets_codas (langid, element, element_type) VALUES (?, ?, 1)"
+  items <- quickQuery conn "SELECT langid, form FROM reflexes" [] >>= 
+       mapM_ (insertRecords insertOnset insertCoda) 
+       . concatMap getMargins 
+       . map (\[lid, fm] -> Lx (fromSql lid) (fromSql fm))
+  commit conn
+  disconnect conn
+  return ()
+
 data ACTRow = ACTRow 
     { actID :: Int
     , actProtoForm :: String
@@ -114,17 +128,3 @@ plingHelper [] _ _ = Nothing
 plingHelper (x:xs) i n
 	|i == n = Just x
 	|otherwise = plingHelper xs i (n+1)
-
-buildTables = do 
-  conn <- connectDB
-  run conn "DROP TABLE IF EXISTS onsets_codas" []
-  run conn "CREATE TABLE \"onsets_codas\" (\"langid\" integer NOT NULL, \"element\" text NOT NULL, \"element_type\" integer NOT NULL, CONSTRAINT \"element_unique\" UNIQUE (langid, element, element_type) ON CONFLICT IGNORE)" []
-  insertOnset <- prepare conn "INSERT INTO onsets_codas (langid, element, element_type) VALUES (?, ?, 0)"
-  insertCoda <- prepare conn "INSERT INTO onsets_codas (langid, element, element_type) VALUES (?, ?, 1)"
-  items <- quickQuery conn "SELECT langid, form FROM reflexes" [] >>= 
-       mapM_ (insertRecords insertOnset insertCoda) 
-       . concatMap getMargins 
-       . map (\[lid, fm] -> Lx (fromSql lid) (fromSql fm))
-  commit conn
-  disconnect conn
-  return ()
