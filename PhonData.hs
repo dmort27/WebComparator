@@ -5,8 +5,12 @@ module PhonData ( elementTable
 import Database.HDBC.Sqlite3
 import Database.HDBC
 
+import qualified System.IO.UTF8 as U8
+import Generics.Pointless.Combinators ((><))
+
 import Data.List (intercalate)
 import Data.List.Split (split, splitOn, startsWithOneOf)
+import Data.Maybe (fromMaybe)
 import Text.Printf (printf)
 
 import Data.Phonology
@@ -48,12 +52,15 @@ data ACTRow = ACTRow
     , actReflexes :: [[(String, Int)]]
     } deriving (Show,Eq)
 
-type ACT = [ACTRow]
+type ACT = ([ACTRow], [String])
 
 makeAbstractCogTable :: (IConnection conn) => conn -> Int -> [Int] -> IO ACT
-makeAbstractCogTable conn plangid langids = quickQuery conn sql [] >>= return . map fromRow
+makeAbstractCogTable conn plangid langids = do
+  langnames <- quickQuery conn "SELECT langid, name FROM langnames" [] >>= return . map (fromSql . (!!1)) . filter ((`elem` langids) . fromSql . head)
+  rows <- quickQuery conn sql [] >>= return . map fromRow
+  return (rows, langnames)
       where
-        sql = concat [ "SELECT refid as prefid, form AS protofrom, gloss AS protogloss, "
+        sql = concat [ "SELECT refid as prefid, form AS protoform, gloss AS protogloss, "
                      , (intercalate ", " $ map (printf "forms%d") langids)
                      , " FROM reflexes "
                      , intercalate " " $ map (\id -> 
@@ -61,6 +68,7 @@ makeAbstractCogTable conn plangid langids = quickQuery conn sql [] >>= return . 
                                                           "'[' || GROUP_CONCAT( '(\"' || form || '\",' || morph_index || ')' ) || ']' AS forms%d " ++ 
                                                           "FROM reflex_of JOIN reflexes USING (refid) " ++ 
                                                           "WHERE langid=%d GROUP BY prefid%d) ON prefid=prefid%d") id id id id id) langids
+                     , printf " WHERE langid=%d ORDER BY protoform" plangid
                      ]
         nullToEmpty :: SqlValue -> SqlValue
         nullToEmpty SqlNull = SqlString "[]"
@@ -74,11 +82,38 @@ makeAbstractCogTable conn plangid langids = quickQuery conn sql [] >>= return . 
             , actReflexes = map (read . fromSql . nullToEmpty) xs
             }
 
-trimToCogMorph :: (String, Int) -> String
-trimToCogMorph (wd, ind) = (!!ind) $ concatMap (splitOn "-") $ splitOn " " wd
+trimToCogMorph :: (String, Int) -> (String, Int)
+trimToCogMorph (wd, ind) = ( fromMaybe "IndexTooLarge" $ (!ind) $ concatMap (splitOn "-") $ splitOn " " wd, ind)
 
 transformRow :: ((String, Int) -> (String, Int)) -> ACTRow -> ACTRow
 transformRow f row = row { actReflexes = map (map f) $ actReflexes row }
+
+showACT :: ACT -> String
+showACT = uncurry (flip (++)) . ((intercalate "\n" . map showACTRow) >< ((++ "\n") . intercalate "\t" . (["Gloss","Protoform"]++)))
+
+showTrimmedACT :: ACT -> String
+showTrimmedACT = intercalate "\n" . map (showACTRow . transformRow trimToCogMorph) . fst
+
+showACTRow :: ACTRow -> String
+showACTRow row = intercalate "\t" ([ printf "‘%s’" $ actProtoGloss row
+                                   , "*" ++ actProtoForm row
+                                   ] ++ reflexes)
+                 where
+                   reflexes = map (fst . fromMaybe ("",0) . fstElem) $ actReflexes row
+
+fstElem :: [a] -> Maybe a
+fstElem [] = Nothing
+fstElem (x:xs) = Just x
+
+trimACT :: [ACTRow] -> [ACTRow]
+trimACT = map (transformRow trimToCogMorph)
+
+(!) :: [a] -> Int -> Maybe a
+(!) xs i = plingHelper xs i 0
+plingHelper [] _ _ = Nothing
+plingHelper (x:xs) i n
+	|i == n = Just x
+	|otherwise = plingHelper xs i (n+1)
 
 buildTables = do 
   conn <- connectDB
