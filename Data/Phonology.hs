@@ -57,7 +57,7 @@ splitOnSpace = splitOn " "
 ipaVowels :: [String]
 ipaVowels = splitOnSpace "i ɨ ʉ ɯ u ɪ ʏ ʊ e ø ɘ ɵ ɤ o ə ɛ ɶ ɜ ɞ ʌ ɔ æ ɐ a ɶ ɑ ɒ"
 
-combiningDiacritics = ['\x0300'..'\x036F']
+combiningDiacritics = ['\x0300' .. '\x036F']
 modifierLetters = ['\x02B0' .. '\x02FF']
 
 stripChars :: (Eq a) => [a] -> [a] -> [a]
