@@ -5,7 +5,7 @@ $(document).ready(
 
         /* GLOBAL SITE SETTINGS */
 
-        var cgiRoot = '';
+        var cgiRoot = '/cgi-bin/';
         
         // Formatters and unformatters
 	var protoformFormat = function(s) { return ('*' + s); };

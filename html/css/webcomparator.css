@@ -18,7 +18,7 @@
     font-size: 0.8em;
 }
 
-#cogset-box, #cogsets-box, #reflexes-box, #morph-picker {
+#cogsets-box, #reflexes-box, #morph-picker {
     -moz-user-select: none;
     -khtml-user-select: none;
     -webkit-user-select: none;
