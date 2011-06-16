@@ -8,7 +8,8 @@ import Database.HDBC
 import qualified System.IO.UTF8 as U8
 import Generics.Pointless.Combinators ((><))
 
-import Data.List (intercalate)
+import Data.List (intercalate, sortBy, nub)
+import Data.Ord (comparing)
 import Data.List.Split (split, splitOn, startsWithOneOf)
 import Data.Maybe (fromMaybe)
 import Text.Printf (printf)
@@ -62,6 +63,8 @@ buildTables = do
 data ACTRow = ACTRow 
     { actID :: Int
     , actProtoForm :: String
+    , actProtoOnset :: String
+    , actProtoRhyme :: String
     , actProtoGloss :: String
     , actReflexes :: [[(String, Int)]]
     } deriving (Show,Eq)
@@ -92,6 +95,10 @@ makeAbstractCogTable conn plangid langids = do
             ACTRow 
             { actID = fromSql prefid
             , actProtoForm = fromSql protoform
+            , actProtoOnset = takeWhile (\x -> [x] `notElem` ipaVowels) 
+                              (fromSql protoform)
+            , actProtoRhyme = dropWhile (\x -> [x] `notElem` ipaVowels) 
+                              (fromSql protoform)
             , actProtoGloss = fromSql protogloss
             , actReflexes = map (read . fromSql . nullToEmpty) xs
             }
@@ -101,6 +108,26 @@ trimToCogMorph (wd, ind) = ( fromMaybe "IndexTooLarge" $ (!ind) $ concatMap (spl
 
 transformRow :: ((String, Int) -> (String, Int)) -> ACTRow -> ACTRow
 transformRow f row = row { actReflexes = map (map f) $ actReflexes row }
+
+sortACTByRhyme :: ACT -> ACT
+sortACTByRhyme (actRows, langNames) = ( sortBy (comparing actProtoRhyme) actRows
+                                      , langNames)
+
+sortACTByOnset :: ACT -> ACT
+sortACTByOnset (actRows, langNames) = ( sortBy (comparing actProtoOnset) actRows
+                                      , langNames)
+
+filterACTBy :: (Eq a) => (ACTRow -> a) -> a -> ACT -> ACT
+filterACTBy accessor value (actRows, langNames) = 
+    (filter ((==value) . accessor) actRows
+    , langNames)
+
+levelsInACTBy :: (Eq a) => (ACTRow -> a) -> ACT -> [a]
+levelsInACTBy accessor (actRows, _) = nub $ map accessor actRows
+
+divideACTByLevels :: (Eq a) => (ACTRow -> a) -> ACT -> [ACT]
+divideACTByLevels accessor act = map (\l -> filterACTBy accessor l act) 
+                                 $ levelsInACTBy accessor act
 
 showACT :: ACT -> String
 showACT = uncurry (flip (++)) . ((intercalate "\n" . map showACTRow) >< ((++ "\n") . intercalate "\t" . (["Gloss","Protoform"]++)))
